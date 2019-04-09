@@ -6,6 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="Init.fsx" />
+    <None Include="Utils.fsx" />
     <None Include="Core.fsx" />
     <Compile Include="Program.fs" />
   </ItemGroup>
