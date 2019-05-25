@@ -610,12 +610,12 @@ let rec exec : int list -> (int -> bool) -> (BoolExpr -> BoolExpr [] -> BoolExpr
         | [] -> opExprs.[0] 
 
 let exprf : BoolExpr -> BoolExpr [] -> BoolExpr = 
-    exec [2..2] xors opExprs ops opStrs arityOfOps 
+    exec [2..8] (equalTo 100) opExprs ops opStrs arityOfOps 
 
 let exprf' : BoolExpr -> BoolExpr [] -> BoolExpr = 
-    exec [2..2] xors opExprs ops opStrs arityOfOps 
+    exec [2..8] (equalTo 100) opExprs ops opStrs arityOfOps 
 
-let expr = exprf' (Var "res") (freshVars 8) 
+let expr = exprf (Var "res") (freshVars 8) 
 let expr' = expr |> toBoolExpr' 
 (expr |> string) = (expr' |> toBoolExpr |> string)
 
@@ -623,7 +623,7 @@ let expr'' = expr' |> allBoolExprs 4 |> Seq.map updateVars |> Seq.toArray
 
 matchBoolExpr 4 expr' expr'
 
-equiv' (freshVars 2) exprf exprf'
+equiv' (freshVars 8) exprf exprf'
 
 
 
