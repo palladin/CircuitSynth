@@ -1,5 +1,5 @@
 ﻿
-
+#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
 #load "Init.fsx"
 #load "Utils.fsx"
 
@@ -113,10 +113,14 @@ let evalInstrs : int [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> Vars -> I
                 yield And [|And resultOps; Eq [|instr.Value|] [|value|]; And args |] |]
 
 
-let equiv' : BoolExpr [] -> BoolExpr -> BoolExpr -> bool = 
+let equiv' : BoolExpr [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) -> (BoolExpr -> BoolExpr [] -> BoolExpr) -> bool = 
     fun freshVars f g ->
         let solver = ctx.MkSolver("QF_FD")
-        let test = Not <| Eq [|f|] [|g|] 
+        let res = Var "res"
+        let res' = Var "res'"
+        let test = Not <| Eq [|res|] [|res'|] 
+        solver.Assert(f res freshVars)
+        solver.Assert(g res' freshVars)
         solver.Assert(test)
         //printfn "%s" <| solver.ToString()
         match solver.Check() with
@@ -212,53 +216,7 @@ let compileInstrs' : (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> int [] -> Instr
 let toVars' : Model -> Vars -> bool[] = fun model vars ->
     [| for entry in vars do 
             yield toBool model entry.Value |]
-
-let writeToDimacs : string -> Context -> Solver -> unit = 
-    fun fileName ctx solver ->
-        let goal = ctx.MkGoal()
-        goal.Add(solver.Assertions)
-        let applyResult = ctx.Then(ctx.MkTactic("simplify"),
-                                   ctx.MkTactic("bit-blast"),
-                                   ctx.MkTactic("tseitin-cnf")).Apply(goal)
-
-        let formulas = applyResult.Subgoals.[0].Formulas
-        let map = 
-            [| for formula in formulas do
-                    yield [| if formula.Args.Length = 0 then 
-                                if formula.IsNot then
-                                    failwith "oups"
-                                yield formula.ToString()
-                             else
-                                for e in formula.Args do
-                                    yield if e.IsNot then e.Args.[0].ToString() else e.ToString()|] |]
-            |> Array.concat
-            |> Array.distinct
-            |> Array.mapi (fun i var -> (var, i + 1))
-            |> Map.ofArray
-
-        printfn "gen vars: %d" (map |> Map.toSeq |> Seq.filter (fun (var, _) -> var.StartsWith("k")) |> Seq.length)
-        printfn "vars: %d" (map |> Map.toSeq |> Seq.filter (fun (var, _) -> not <| var.StartsWith("k")) |> Seq.length)
-
-        let formulas' = 
-            [| for formula in formulas do
-                    yield [| if formula.Args.Length = 0 then 
-                                yield Map.find (formula.ToString()) map
-                             else if formula.Args.Length = 1 && formula.IsNot then 
-                                yield -(Map.find (formula.Args.[0].ToString()) map)
-                             else
-                                for e in formula.Args do
-                                    yield if e.IsNot then -(Map.find (e.Args.[0].ToString()) map) 
-                                          else Map.find (e.ToString()) map |] |]
-        
-        use writer = File.CreateText(fileName)
-        let header = sprintf "p cnf %d %d" (Seq.length map) formulas'.Length
-        printfn "%s" header
-        writer.WriteLine(header)
-        for clause in formulas' do
-            for literal in clause do
-                writer.Write(literal.ToString() + " ")
-            writer.WriteLine("0")
-        ()
+            
 
 let writeTruthTable : string -> int -> int [] -> (int -> bool) -> unit = 
     fun fileName bitSize data f ->
@@ -653,6 +611,9 @@ let rec exec : int list -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
 let exprf : BoolExpr -> BoolExpr [] -> BoolExpr = 
     exec [2..2] opExprs ops opStrs arityOfOps 
 
+let exprf' : BoolExpr -> BoolExpr [] -> BoolExpr = 
+    exec [2..2] opExprs ops opStrs arityOfOps 
+
 let expr = exprf (Var "res") (freshVars 8) 
 let expr' = expr |> toBoolExpr' 
 (expr |> string) = (expr' |> toBoolExpr |> string)
@@ -661,7 +622,7 @@ let expr'' = expr' |> allBoolExprs 4 |> Seq.map updateVars |> Seq.toArray
 
 matchBoolExpr 4 expr' expr'
 
-equiv' (freshVars 2) (toBoolExpr expr') (toBoolExpr expr')
+equiv' (freshVars 2) exprf exprf'
 
 verify 2 (fun i -> let map = (getVars "x" expr', toBits' 2 i) ||> Array.zip in eval' map expr')
          (fun i -> let map = (getVars "x" expr'', toBits' 2 i) ||> Array.zip in eval' map expr'')
@@ -677,34 +638,15 @@ for i in {2..countOps expr} |> Seq.rev do
         |> Seq.toArray
         |> Seq.length
     printfn "%d - %d" i result
+    
 
-//freshVars |> g |> countOps 
-//toFuncBoolExpr numOfVars [|0..(final - 1)|] f freshVars |> string
-//toFuncBoolExpr numOfVars [|0..(final - 1)|] f freshVars |> simplify numOfVars freshVars |> string
-//toFuncBoolExpr numOfVars [|0..(final - 1)|] f freshVars |> countOps
-//toFuncBoolExpr numOfVars [|0..(final - 1)|] f freshVars |> simplify numOfVars freshVars |> countOps
 
 let (status, instr) = 
-    find' 4 opExprs ops opStrs [|0..arityOfOps.Length - 1|] f [|0..15|] arityOfOps 9
+    find 4 opExprs ops opStrs [|0..arityOfOps.Length - 1|] f [|0..15|] arityOfOps 9
 
 strInstrs opStrs arityOfOps instr
 
 
-let freshVars' = [|0..63|] |> Array.map (fun i -> Var ("x" + string i))
-equiv freshVars' (freshVars' |> shuffle 2 |> Array.reduce (fun x y -> Not <| Or [|And [|x; y|]; Not <| Or [|x; y|]|])) 
-                 (freshVars' |> shuffle 2 |> Array.reduce (fun x y -> And [|Or [|x; y|]; Not <| And [|x; y|]|])) 
-
-
-let a = freshVars' |> shuffle 63
-let b = freshVars' |> shuffle 63
-equiv' freshVars' (a |> Array.reduce (fun x y -> Not <| Or [|And [|x; y|]; Not <| Or [|x; y|]|])) 
-                  (b |> Array.reduce (fun x y -> And [|Or [|x; y|]; Not <| And [|x; y|]|])) 
-
-equiv' freshVars' (a |> Array.reduce (fun x y -> And [|Or [|x; y|]; Not <| And [|x; y|]|])) 
-                  (b |> Array.reduce (fun x y -> And [|Or [|x; y|]; Not <| And [|x; y|]|])) 
-
-equiv' freshVars' (a |> Array.reduce (fun x y -> And [|x; y|])) 
-                  (b |> Array.map Not |> Array.reduce (fun x y -> Or [|x; y|]) |> Not)
 
 
 
