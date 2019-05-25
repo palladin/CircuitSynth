@@ -489,16 +489,17 @@ let freshVars numOfVars = [|0..numOfVars - 1|] |> Array.map (fun i -> Var ("x" +
 let seed = int DateTime.Now.Ticks
 let random = new Random(seed)
 
+
 let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
 let numOfVars = 8
 let final = int (2.0 ** (float numOfVars))
-let f = (fun i -> xors <| toBits' numOfVars i)
-                  // (fun i -> i = 100); (fun i -> i % 2 = 0); isPrime; 
-                  // isPowerOfTwo; (fun i -> xors <| toBits' numOfVars i)
-                  // (fun i -> rnds.[i] % 2 = 0)
+
+let xors = (fun i -> xors <| toBits' numOfVars i)
+let isEven = (fun i -> i % 2 = 0)
+let equalTo n = (fun i -> i = n)
 
 
 let allBoolExprs : int -> BoolExpr' [] -> seq<BoolExpr' []> = 
@@ -592,11 +593,11 @@ let matchBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] -> (BoolExpr' [] * BoolE
 
        
 
-let rec exec : int list -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
+let rec exec : int list -> (int -> bool) -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
               (bool [] -> bool) [] ->
               (string [] -> string) [] -> int [] -> 
               (BoolExpr -> BoolExpr [] -> BoolExpr) = 
-    fun ns opExprs ops opStrs arityOfOps ->
+    fun ns f opExprs ops opStrs arityOfOps ->
         match ns with
         | (n :: ns) ->
             printfn "n: %d -------------------------------" n
@@ -605,16 +606,16 @@ let rec exec : int list -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             let opStrs = Array.append [|opStr|] opStrs
             let opExprs = Array.append [|opExpr|] opExprs
             let arityOfOps = Array.append [|n|] arityOfOps 
-            exec ns opExprs ops opStrs arityOfOps 
+            exec ns f opExprs ops opStrs arityOfOps 
         | [] -> opExprs.[0] 
 
 let exprf : BoolExpr -> BoolExpr [] -> BoolExpr = 
-    exec [2..2] opExprs ops opStrs arityOfOps 
+    exec [2..2] xors opExprs ops opStrs arityOfOps 
 
 let exprf' : BoolExpr -> BoolExpr [] -> BoolExpr = 
-    exec [2..2] opExprs ops opStrs arityOfOps 
+    exec [2..2] xors opExprs ops opStrs arityOfOps 
 
-let expr = exprf (Var "res") (freshVars 8) 
+let expr = exprf' (Var "res") (freshVars 8) 
 let expr' = expr |> toBoolExpr' 
 (expr |> string) = (expr' |> toBoolExpr |> string)
 
@@ -624,31 +625,7 @@ matchBoolExpr 4 expr' expr'
 
 equiv' (freshVars 2) exprf exprf'
 
-verify 2 (fun i -> let map = (getVars "x" expr', toBits' 2 i) ||> Array.zip in eval' map expr')
-         (fun i -> let map = (getVars "x" expr'', toBits' 2 i) ||> Array.zip in eval' map expr'')
-
-let expr = expr (freshVars 4)
-let expr' = expr' (freshVars 5) 
-
-for i in {2..countOps expr} |> Seq.rev do
-    let result = 
-        (expr, expr') 
-        ||> matchBoolExpr i
-        |> Seq.map string 
-        |> Seq.toArray
-        |> Seq.length
-    printfn "%d - %d" i result
-    
-
-
-let (status, instr) = 
-    find 4 opExprs ops opStrs [|0..arityOfOps.Length - 1|] f [|0..15|] arityOfOps 9
-
-strInstrs opStrs arityOfOps instr
 
 
 
-
-
-
-writeTruthTable "tt.csv" 8 [|0..255|] (fun i -> xors <| toBits' numOfVars i)
+writeTruthTable "tt.csv" 8 [|0..255|] xors
