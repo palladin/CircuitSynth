@@ -10,6 +10,7 @@
     <None Include="Utils.fsx" />
     <None Include="Core.fsx" />
     <Compile Include="Program.fs" />
+    <None Include="Scratch.fsx" />
   </ItemGroup>
 
   <ItemGroup />
