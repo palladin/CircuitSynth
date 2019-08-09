@@ -257,16 +257,17 @@ type BoolExpr' =
     | Var' of string * string 
 
 let rec toBoolExpr' : BoolExpr -> BoolExpr' [] = fun expr ->
+    printfn "test - %A" expr
     match expr with
     | Eq (Var v, And (Var x, Var y)) -> [|And' (v, x, y)|]
     | Eq (Var v, Or (Var x, Var y)) -> [|Or' (v, x, y)|]
     | Eq (Var v, Not (Var x)) -> [|Not' (v, x)|]
     | Eq (Var x, Var y) -> [|Var' (x, y)|]
-    | And1 x -> toBoolExpr' x
-    | And (x, y) | Or (x, y) -> Array.append (toBoolExpr' x) (toBoolExpr' y)
+    //| And1 x -> toBoolExpr' x
+    //| And (x, y) | Or (x, y) -> Array.append (toBoolExpr' x) (toBoolExpr' y)
     | AndStar xs -> xs |> Array.map toBoolExpr' |> Array.reduce Array.append
     | Not x  -> toBoolExpr' x 
-    | _ -> failwithf "oups %A - %d" expr expr.NumArgs
+    | _ -> printfn "oups %A - %d" expr expr.NumArgs; [||]
 
 let toBoolExpr : BoolExpr' [] -> BoolExpr = fun exprs ->
     exprs |> Array.map (function | And' (v, x, y) -> Eq [|Var v|] [|And [|Var x; Var y|]|]
@@ -310,6 +311,25 @@ let eval' : (string * bool) [] -> BoolExpr' [] -> bool = fun map exprs ->
         | Var' (v, x) when x.StartsWith("x") -> map |> Array.find (fun (key, _) -> key = x) |> snd
         | Var' (v, x) -> run x
     run (topVarBoolExpr' exprs)
+
+
+let getVars : string -> BoolExpr' [] -> string [] = fun prefix exprs ->
+    exprs 
+    |> Seq.filter (function Var' (_, x) when x.StartsWith(prefix) -> true | _ -> false) 
+    |> Seq.map (function Var' (_, x) -> x | _ -> failwith "oups") 
+    |> Seq.distinct
+    |> Seq.toArray
+
+
+let countVars : string -> BoolExpr' [] -> int = fun prefix exprs ->
+    exprs |> getVars prefix |> Seq.length
+
+let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
+    let vars = exprs |> getVars "y"
+    let vars' = exprs |> getVars "y" |> Array.mapi (fun i _ -> sprintf "x%d" i) 
+    exprs |> Array.map (function | Var' (v, x) when x.StartsWith("y") -> Var' (v, vars'.[Array.findIndex ((=) x) vars])
+                                 | And' _ | Or' _ | Not' _  | Var' _ as expr -> expr)
+
 
 
 let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 

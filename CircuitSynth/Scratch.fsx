@@ -14,27 +14,27 @@ open Core
 let arityOfOps = [|2;
                    2;
                    1;
-                   2;
+        //           2;
                  |]
 let ops : (bool [] -> bool) [] = 
     [|(fun args -> args.[0] || args.[1]);
       (fun args -> args.[0] && args.[1]);
       (fun args -> not args.[0]);
-      (fun args -> xor args.[0] args.[1])
+      //(fun args -> xor args.[0] args.[1])
     |]
 
 let opExprs : (BoolExpr -> BoolExpr [] -> BoolExpr) [] = 
     [|(fun var args -> Eq [|var|] [|Or [|args.[0]; args.[1]|]|]);
       (fun var args -> Eq [|var|] [|And [|args.[0]; args.[1]|]|]);
       (fun var args -> Eq [|var|] [|Not args.[0]|]);
-      (fun var args -> Eq [|var|] [|Xor args.[0] args.[1]|]);
+      //(fun var args -> Eq [|var|] [|Xor args.[0] args.[1]|]);
     |]
 
 let opStrs : (string [] -> string) [] = 
     [|(fun args -> sprintf "%s or %s" args.[0] args.[1]);
       (fun args -> sprintf "%s and %s" args.[0] args.[1]);
       (fun args -> sprintf "not %s" args.[0]);
-      (fun args -> sprintf "%s xor %s" args.[0] args.[1])
+      //(fun args -> sprintf "%s xor %s" args.[0] args.[1])
     |]
 
 let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
@@ -165,87 +165,19 @@ let allBoolExprs : int -> BoolExpr' [] -> seq<BoolExpr' []> =
 
 
 
-let getVars : string -> BoolExpr' [] -> string [] = fun prefix exprs ->
-    exprs 
-    |> Seq.filter (function Var' (_, x) when x.StartsWith(prefix) -> true | _ -> false) 
-    |> Seq.map (function Var' (_, x) -> x) 
-    |> Seq.distinct
-    |> Seq.toArray
-
-
-let countVars : string -> BoolExpr' [] -> int = fun prefix exprs ->
-    exprs |> getVars prefix |> Seq.length
-    
-let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
-    let vars = exprs |> getVars "y"
-    let vars' = exprs |> getVars "y" |> Array.mapi (fun i _ -> sprintf "x%d" i) 
-    exprs |> Array.map (function | Var' (v, x) when x.StartsWith("y") -> Var' (v, vars'.[Array.findIndex ((=) x) vars])
-                                 | And' _ | Or' _ | Not' _  | Var' _ as expr -> expr)
-    
-let matchBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] -> (BoolExpr' [] * BoolExpr' []) [] = 
-    fun numOfOps xs ys ->
-        let xs = [|0..xs.Length - 1|]
-                 |> Seq.collect (fun i -> allBoolExprs numOfOps xs.[i..xs.Length - 1])
-                 |> Seq.map updateVars
-                 |> Seq.toArray
-        let ys = [|0..ys.Length - 1|]
-                 |> Seq.collect (fun i -> allBoolExprs numOfOps ys.[i..ys.Length - 1])
-                 |> Seq.map updateVars
-                 |> Seq.toArray
-        let result = 
-            xs 
-            |> Seq.collect (fun x -> ys |> Seq.map (fun y -> (x, y)))
-            |> Seq.filter (fun (x, y) -> countVars "x" x = countVars "x" y)
-            |> Seq.toArray
-        result
-        //let equals = 
-        //    result 
-        //    |> Seq.filter (fun (x, y) -> x = y)
-        //    |> Seq.toArray
-        //let result' = result |> Array.filter (fun (x, y) -> not (x = y))
-        //let numOfVars = if result'.Length = 0 then 0 else (result' |> Array.map (fun (x, y) -> max (countVars "x" x) (countVars "x" y)) |> Array.max)
-        //let bools = equivs (freshVars numOfVars) (result' |> Array.map (fun (expr, _) -> toBoolExpr expr)) (result' |> Array.map (fun (_, expr) -> toBoolExpr expr))
-        //let equivs = 
-        //    result' 
-        //    |> Seq.mapi (fun i (x, y) -> (bools.[i], x, y))
-        //    |> Seq.filter (fun (b, x, y) -> b)
-        //    |> Seq.map (fun (b, x, y) -> (x, y))
-        //    |> Seq.toArray
-        //Array.append equals equivs
-
        
 
-let rec exec : int list -> (int -> bool) -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
-              (bool [] -> bool) [] ->
-              (string [] -> string) [] -> int [] -> 
-              (BoolExpr -> BoolExpr [] -> BoolExpr) = 
-    fun ns f opExprs ops opStrs arityOfOps ->
-        match ns with
-        | (n :: ns) ->
-            printfn "n: %d -------------------------------" n
-            let (_, op, opStr, opExpr) = run n opExprs ops opStrs f 0 numOfTries opExprs.Length numOfInstrsIndex numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
-            let ops = Array.append [|op|] ops
-            let opStrs = Array.append [|opStr|] opStrs
-            let opExprs = Array.append [|opExpr|] opExprs
-            let arityOfOps = Array.append [|n|] arityOfOps 
-            exec ns f opExprs ops opStrs arityOfOps 
-        | [] -> opExprs.[0] 
 
-let exprf : BoolExpr -> BoolExpr [] -> BoolExpr = 
-    exec [8..8] (equalTo 100) opExprs ops opStrs arityOfOps 
+let n = 5
+let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 15 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
+let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 
-let exprf' : BoolExpr -> BoolExpr [] -> BoolExpr = 
-    exec [2..8] (equalTo 100) opExprs ops opStrs arityOfOps 
 
-let expr = exprf (Var "res") (freshVars 8) 
-let expr' = expr |> toBoolExpr' 
-(expr |> string) = (expr' |> toBoolExpr |> string)
+let expr = opExpr (Var "res") (freshVars 8) |> toBoolExpr'
 
-let expr'' = expr' |> allBoolExprs 4 |> Seq.map updateVars |> Seq.toArray
 
-matchBoolExpr 4 expr' expr'
+equiv' (freshVars 8) opExpr opExpr'
 
-equiv' (freshVars 8) exprf exprf'
 
 
 
