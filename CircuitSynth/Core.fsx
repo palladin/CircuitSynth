@@ -207,7 +207,7 @@ let compileInstrs' : (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> int [] -> Instr
             let args = instr.Args |> Array.take args.[instr.Op] |> Array.mapi (fun i arg -> if arg.IsVar then Eq [|argVars.[i]|] [|vars.[arg.VarPos]|] else Eq [|argVars.[i]|] [|resultVars.[arg.InstrPos]|])
             And [|opExprs.[instr.Op] resultVar argVars; And args|]
         let exprs = resultVars |> Array.mapi (fun i resultVar -> compile i resultVar)
-        And [|Eq [|resultVar|] [|resultVars.[0]|]; And exprs|]
+        And <| Array.append [|Eq [|resultVar|] [|resultVars.[0]|]|] exprs
         
     
 let toVars' : Model -> Vars -> bool[] = fun model vars ->
@@ -256,18 +256,34 @@ type BoolExpr' =
     | Not' of string * string
     | Var' of string * string 
 
-let rec toBoolExpr' : BoolExpr -> BoolExpr' [] = fun expr ->
-    printfn "test - %A" expr
-    match expr with
-    | Eq (Var v, And (Var x, Var y)) -> [|And' (v, x, y)|]
-    | Eq (Var v, Or (Var x, Var y)) -> [|Or' (v, x, y)|]
-    | Eq (Var v, Not (Var x)) -> [|Not' (v, x)|]
-    | Eq (Var x, Var y) -> [|Var' (x, y)|]
-    //| And1 x -> toBoolExpr' x
-    //| And (x, y) | Or (x, y) -> Array.append (toBoolExpr' x) (toBoolExpr' y)
-    | AndStar xs -> xs |> Array.map toBoolExpr' |> Array.reduce Array.append
-    | Not x  -> toBoolExpr' x 
-    | _ -> printfn "oups %A - %d" expr expr.NumArgs; [||]
+let rec toBoolExprs : BoolExpr -> BoolExpr [] = fun expr -> 
+    if not expr.IsAnd then [|expr|]
+    else
+        let notand = 
+            expr.Args 
+            |> Array.filter (fun expr -> not expr.IsAnd)
+            |> Array.map (fun expr -> expr :?> BoolExpr)
+
+        let and' = 
+            expr.Args 
+            |> Array.filter (fun expr -> expr.IsAnd) 
+            |> Array.collect (fun expr -> expr.Args) 
+            |> Array.map (fun expr -> expr :?> BoolExpr)
+            |> Array.collect toBoolExprs
+
+        Array.append notand and'
+
+let toBoolExpr' : BoolExpr -> BoolExpr' []  = fun expr ->
+    let f : BoolExpr -> BoolExpr' = fun expr ->
+        match expr with
+        | Eq (Var v, And (Var x, Var y)) -> And' (v, x, y)
+        | Eq (Var v, Or (Var x, Var y)) -> Or' (v, x, y)
+        | Eq (Var v, Not (Var x)) -> Not' (v, x)
+        | Eq (Var x, Var y) -> Var' (x, y)
+        | _ -> failwithf "oups %A - %d" expr expr.NumArgs
+
+    expr |> toBoolExprs |> Array.map f
+
 
 let toBoolExpr : BoolExpr' [] -> BoolExpr = fun exprs ->
     exprs |> Array.map (function | And' (v, x, y) -> Eq [|Var v|] [|And [|Var x; Var y|]|]

@@ -161,11 +161,8 @@ let allBoolExprs : int -> BoolExpr' [] -> seq<BoolExpr' []> =
         |> Seq.filter (fun x -> countOps' x = n)
         //|> Seq.collect (fun expr -> seq { yield expr; yield Not' expr })
         |> Seq.map Array.distinct
-        
 
 
-
-       
 
 
 let n = 5
@@ -173,7 +170,8 @@ let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries 
 let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 
 
-let expr = opExpr (Var "res") (freshVars 8) |> toBoolExpr'
+opExpr (Var "res") (freshVars 8) |> toBoolExpr'
+
 
 
 equiv' (freshVars 8) opExpr opExpr'
