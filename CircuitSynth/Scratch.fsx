@@ -146,14 +146,15 @@ let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> =
 
 
 let n = 5
-let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 15 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
+let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPrime 0 numOfTries opExprs.Length 15 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 
 
 let vars = freshVars 8
 let expr = opExpr (Var "res") vars |> toBoolExpr'
 
-rndBoolExpr 5 expr |> take' 3 |> Array.ofSeq
+rndBoolExpr 0 expr |> Seq.filter (function Var' (_, x) -> false | _ -> true) |> take' 5 |> Array.ofSeq 
+
 
 [| for i = 1 to 1000 do
         yield equiv' (freshVars 8) opExpr opExpr' |]

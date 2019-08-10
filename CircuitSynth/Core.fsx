@@ -3,6 +3,7 @@
 #load "Utils.fsx"
 
 open System
+open System.Collections.Generic
 open System.IO
 open Microsoft.Z3
 open Utils
@@ -299,6 +300,18 @@ let toMapBoolExpr : BoolExpr' [] -> Map<string, BoolExpr'> = fun exprs ->
                                      | Not' (v, x) -> (v, expr)
                                      | Var' (v, x) -> (v, expr))
           |> Map.ofArray
+
+let toDictBoolExpr : BoolExpr' [] -> Dictionary<string, BoolExpr'> = fun exprs ->
+    let dict = new Dictionary<string, BoolExpr'>()
+    let vars = 
+        exprs |> Array.map (fun expr -> match expr with 
+                                         | And' (v, x, y) -> (v, expr)
+                                         | Or' (v, x, y) -> (v, expr)
+                                         | Not' (v, x) -> (v, expr)
+                                         | Var' (v, x) -> (v, expr))
+    for (v, expr) in vars do
+        dict.Add(v, expr)
+    dict
           
     
 
