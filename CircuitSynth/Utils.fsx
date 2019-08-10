@@ -1,4 +1,8 @@
-﻿
+﻿#load "Init.fsx"
+
+open Init
+open System
+
 let swap (a: _[]) x y =
     let tmp = a.[x]
     a.[x] <- a.[y]
@@ -14,6 +18,9 @@ let isPowerOfTwo : int -> bool = fun x ->
 let xor : bool -> bool -> bool = fun a b -> (a || b) && (not a || not b)
 let xors : bool [] -> bool = fun bits ->
     bits |> Array.reduce xor
+
+
+let rndBit () = rand.Next() % 2 = 0
 
 let (|SeqEmpty|SeqCons|) xs = 
   if Seq.isEmpty xs then SeqEmpty
@@ -36,3 +43,23 @@ let rec merge : seq<'a> -> seq<'a> -> seq<'a> =
           | SeqEmpty, SeqEmpty -> ()
         }
 
+let merge' : seq<seq<'a>> -> seq<'a> = 
+    fun xss ->
+        xss |> Seq.fold merge Seq.empty 
+
+let take' : int -> seq<'a> -> seq<'a> = 
+    fun n xs -> System.Linq.Enumerable.Take(xs, n)
+
+let randoms : int -> int -> int -> seq<int> = fun seed min max ->
+    let random = new Random(seed)
+    seq { while true do
+            yield random.Next(min, max + 1) }
+
+let getSample : (int -> bool) -> int [] -> int -> int [] = 
+    fun verify baseSample numOfSamples ->
+        let sample =
+            (baseSample |> Seq.filter verify, baseSample |> Seq.filter (not << verify))
+            ||> merge
+            |> Seq.take numOfSamples
+            |> Seq.toArray  
+        sample

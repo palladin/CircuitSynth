@@ -408,17 +408,4 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
 
 
 
-let randoms : int -> int -> int -> seq<int> = fun seed min max ->
-    let random = new Random(seed)
-    seq { while true do
-            yield random.Next(min, max + 1) }
-
-let getSample : (int -> bool) -> int [] -> int -> int [] = 
-    fun verify baseSample numOfSamples ->
-        let sample =
-            (baseSample |> Seq.filter verify, baseSample |> Seq.filter (not << verify))
-            ||> merge
-            |> Seq.take numOfSamples
-            |> Seq.toArray  
-        sample
 

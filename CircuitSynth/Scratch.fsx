@@ -124,43 +124,40 @@ let isEven = (fun i -> i % 2 = 0)
 let equalTo n = (fun i -> i = n)
 
 
-let allBoolExprs : int -> BoolExpr' [] -> seq<BoolExpr' []> = 
+let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> = 
     fun n exprs ->
         let i = ref -1
+        let n = ref n
         let lookupMap = exprs |> toMapBoolExpr
         let map = new Dictionary<string, string>()
-        let rec allBoolExprs' : int -> string -> seq<BoolExpr' []> = 
-            fun n name ->
+        let rec rndBoolExpr' : string -> seq<BoolExpr'> = 
+            fun name ->
                 match Map.tryFind name lookupMap with
-                | None -> Seq.empty
+                | None -> failwith "oups"
                 | Some expr ->
                     match expr with
-                    | And' _ | Or' _ | Not' _ when n = 0 -> 
+                    | And' _ | Or' _ | Not' _ when !n <= 0 -> 
+                            printfn "op %s" name
                             if not <| map.ContainsKey(name) then 
                                 incr i
                                 map.Add(name, sprintf "y%d" !i)
-                            seq { yield [|Var' (name, map.[name])|] }
-                    | Var' (v, x) when n = 0 && x.StartsWith("x") -> 
+                            seq { yield Var' (name, map.[name]) }
+                    | Var' (v, x) when !n <= 0 && x.StartsWith("x") -> 
+                            printfn "var %s" name
                             if not <| map.ContainsKey(x) then 
                                 incr i
                                 map.Add(x, sprintf "y%d" !i)
-                            seq { yield [|Var' (v, map.[x])|] }
+                            seq { yield Var' (v, map.[x]) }
                     | And' (v, x, y) | Or' (v, x, y) as expr -> 
-                            seq { for (i, j) in split (n - 1) do 
-                                    for xs in allBoolExprs' i x do
-                                        for ys in allBoolExprs' j y do
-                                            yield  Array.append [|expr|] (Array.append xs ys) } 
-                            |> Seq.filter (fun x -> countOps' x = n)
+                        decr n;
+                        seq { yield expr; yield! [|x; y|] |> Seq.map rndBoolExpr' |> merge' } 
                     | Not' (v, x) as expr -> 
-                            seq { for xs in allBoolExprs' (n - 1) x -> Array.append [|expr|] xs }
-                            |> Seq.filter (fun x -> countOps' x = n)
+                        decr n;
+                        seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> 
-                        seq { for xs in allBoolExprs' n x -> Array.append [|expr|] xs }
-                        |> Seq.filter (fun x -> countOps' x = n)
-        allBoolExprs' n (topVarBoolExpr' exprs)
-        |> Seq.filter (fun x -> countOps' x = n)
-        //|> Seq.collect (fun expr -> seq { yield expr; yield Not' expr })
-        |> Seq.map Array.distinct
+                        seq { yield expr; yield! rndBoolExpr' x }
+        rndBoolExpr' (topVarBoolExpr' exprs)
+
 
 
 
@@ -170,11 +167,13 @@ let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries 
 let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 
 
-opExpr (Var "res") (freshVars 8) |> toBoolExpr'
+let vars = freshVars 8
+let expr = opExpr (Var "res") vars |> toBoolExpr'
 
+rndBoolExpr 5 expr |> Array.ofSeq
 
-
-equiv' (freshVars 8) opExpr opExpr'
+[| for i = 1 to 1000 do
+        yield equiv' (freshVars 8) opExpr opExpr' |]
 
 
 
