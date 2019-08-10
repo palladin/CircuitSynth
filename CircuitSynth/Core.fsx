@@ -329,20 +329,20 @@ let eval' : (string * bool) [] -> BoolExpr' [] -> bool = fun map exprs ->
     run (getVarBoolExpr' exprs.[0])
 
 
-let getVars : string -> BoolExpr' [] -> string [] = fun prefix exprs ->
+let getVars : BoolExpr' [] -> (string * string) [] = fun exprs ->
     exprs 
-    |> Seq.filter (function Var' (_, x) when x.StartsWith(prefix) -> true | _ -> false) 
-    |> Seq.map (function Var' (_, x) -> x | _ -> failwith "oups") 
+    |> Seq.filter (function Var' (_, x) -> true | _ -> false) 
+    |> Seq.map (function Var' (v, x) -> (v, x) | _ -> failwith "oups") 
     |> Seq.distinct
     |> Seq.toArray
 
 
 let countVars : string -> BoolExpr' [] -> int = fun prefix exprs ->
-    exprs |> getVars prefix |> Seq.length
+    exprs |> getVars |> Seq.length
 
 let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
-    let vars = exprs |> getVars "y"
-    let vars' = exprs |> getVars "y" |> Array.mapi (fun i _ -> sprintf "x%d" i) 
+    let vars = exprs |> getVars |> Array.filter (fun (_, x) -> x.StartsWith("y")) |> Array.map snd 
+    let vars' = exprs |> getVars |> Array.filter (fun (_, x) -> x.StartsWith("y")) |> Array.map snd |> Array.mapi (fun i _ -> sprintf "x%d" i) 
     exprs |> Array.map (function | Var' (v, x) when x.StartsWith("y") -> Var' (v, vars'.[Array.findIndex ((=) x) vars])
                                  | And' _ | Or' _ | Not' _  | Var' _ as expr -> expr)
 
