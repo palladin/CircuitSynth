@@ -309,8 +309,8 @@ let countOps' : BoolExpr' [] -> int = fun exprs ->
                                  | Var' (v, x) -> 0)
           |> Array.sum
 
-let topVarBoolExpr' : BoolExpr' [] -> string = fun exprs ->
-    match exprs |> Array.head with 
+let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
+    match expr with 
     | And' (v, x, y) | Or' (v, x, y) -> v 
     | Not' (v, x) | Var' (v, x) -> v
 
@@ -326,7 +326,7 @@ let eval' : (string * bool) [] -> BoolExpr' [] -> bool = fun map exprs ->
             run x |> not
         | Var' (v, x) when x.StartsWith("x") -> map |> Array.find (fun (key, _) -> key = x) |> snd
         | Var' (v, x) -> run x
-    run (topVarBoolExpr' exprs)
+    run (getVarBoolExpr' exprs.[0])
 
 
 let getVars : string -> BoolExpr' [] -> string [] = fun prefix exprs ->

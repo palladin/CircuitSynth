@@ -126,37 +126,20 @@ let equalTo n = (fun i -> i = n)
 
 let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> = 
     fun n exprs ->
-        let i = ref -1
-        let n = ref n
         let lookupMap = exprs |> toMapBoolExpr
-        let map = new Dictionary<string, string>()
         let rec rndBoolExpr' : string -> seq<BoolExpr'> = 
             fun name ->
                 match Map.tryFind name lookupMap with
-                | None -> failwith "oups"
+                | None -> Seq.empty
                 | Some expr ->
                     match expr with
-                    | And' _ | Or' _ | Not' _ when !n <= 0 -> 
-                            printfn "op %s" name
-                            if not <| map.ContainsKey(name) then 
-                                incr i
-                                map.Add(name, sprintf "y%d" !i)
-                            seq { yield Var' (name, map.[name]) }
-                    | Var' (v, x) when !n <= 0 && x.StartsWith("x") -> 
-                            printfn "var %s" name
-                            if not <| map.ContainsKey(x) then 
-                                incr i
-                                map.Add(x, sprintf "y%d" !i)
-                            seq { yield Var' (v, map.[x]) }
                     | And' (v, x, y) | Or' (v, x, y) as expr -> 
-                        decr n;
-                        seq { yield expr; yield! [|x; y|] |> Seq.map rndBoolExpr' |> merge' } 
+                        seq { yield expr; yield! [|x; y|] |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
                     | Not' (v, x) as expr -> 
-                        decr n;
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> 
                         seq { yield expr; yield! rndBoolExpr' x }
-        rndBoolExpr' (topVarBoolExpr' exprs)
+        rndBoolExpr' (getVarBoolExpr' exprs.[n])
 
 
 
@@ -170,13 +153,13 @@ let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTri
 let vars = freshVars 8
 let expr = opExpr (Var "res") vars |> toBoolExpr'
 
-rndBoolExpr 5 expr |> Array.ofSeq
+rndBoolExpr 5 expr |> take' 3 |> Array.ofSeq
 
 [| for i = 1 to 1000 do
         yield equiv' (freshVars 8) opExpr opExpr' |]
 
 
-
+[|1..10|] |> take' 20 |> Seq.toArray
 
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
