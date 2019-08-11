@@ -142,16 +142,33 @@ let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> =
         rndBoolExpr' (getVarBoolExpr' exprs.[n])
 
 
-
-
+let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs -> 
+    let dict = toDictBoolExpr exprs
+    let f : string -> string = fun name -> 
+        if dict.ContainsKey(name) then
+            match dict.[name] with
+            | Var' (v, x) -> 
+                dict.Remove(v) |> ignore 
+                x
+            | _ -> name
+        else name
+    for expr in exprs do
+        match expr with
+        | And' (v, x, y) -> dict.[v] <- And' (v, f x, f y)
+        | Or' (v, x, y) -> dict.[v] <- Or' (v, f x, f y)
+        | Not' (v, x) -> dict.[v] <- Not' (v, f x)
+        | Var' (v, _) -> dict.Remove(v) |> ignore
+    [| for keyValue in dict do yield keyValue.Value  |]
 
 let n = 5
-let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPrime 0 numOfTries opExprs.Length 15 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
+let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 15 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 
 
 let vars = freshVars 8
 let expr = opExpr (Var "res") vars |> toBoolExpr'
+
+expr |> removeVars
 
 rndBoolExpr 0 expr |> Seq.filter (function Var' (_, x) -> false | _ -> true) |> take' 5 |> Array.ofSeq 
 
