@@ -11,6 +11,7 @@
     <None Include="Core.fsx" />
     <Compile Include="Program.fs" />
     <None Include="Scratch.fsx" />
+    <None Include="BoolExpr.fsx" />
   </ItemGroup>
 
   <ItemGroup />

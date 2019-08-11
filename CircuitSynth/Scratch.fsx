@@ -2,6 +2,7 @@
 #load "Init.fsx"
 #load "Utils.fsx"
 #load "Core.fsx"
+#load "BoolExpr.fsx"
 
 open System
 open System.Diagnostics
@@ -10,6 +11,7 @@ open Microsoft.Z3
 open Utils
 open Init
 open Core
+open BoolExpr
 
 let arityOfOps = [|2;
                    2;
