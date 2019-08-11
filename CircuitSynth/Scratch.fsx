@@ -137,8 +137,7 @@ let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> =
                         seq { yield expr; yield! [|x; y|] |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
-                    | Var' (v, x) as expr -> 
-                        seq { yield expr; yield! rndBoolExpr' x }
+                    | Var' (v, x) as expr -> failwith "oups"
         rndBoolExpr' (getVarBoolExpr' exprs.[n])
 
 
@@ -196,7 +195,8 @@ let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars
 
 
 
-rndBoolExpr 0 expr |> take' 5 |> Array.ofSeq 
+let exprs = rndBoolExpr 0 expr |> take' 5 |> Array.ofSeq 
+exprs |> updateLeafVars
 
 
 equiv' (freshVars 8) opExpr (expr |> toBoolExpr)

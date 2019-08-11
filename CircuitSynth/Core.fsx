@@ -346,25 +346,49 @@ let eval' : (string * bool) [] -> BoolExpr' [] -> bool = fun map exprs ->
         | Var' (v, x) -> run x
     run (getVarBoolExpr' exprs.[0])
 
+let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs -> 
+    let dict = toDictBoolExpr exprs
+    let f : string -> string = fun name -> 
+        if dict.ContainsKey(name) then
+            match dict.[name] with
+            | Var' (v, x) -> 
+                dict.Remove(v) |> ignore 
+                x
+            | _ -> name
+        else name
+    for expr in exprs do
+        match expr with
+        | And' (v, x, y) -> dict.[v] <- And' (v, f x, f y)
+        | Or' (v, x, y) -> dict.[v] <- Or' (v, f x, f y)
+        | Not' (v, x) -> dict.[v] <- Not' (v, f x)
+        | Var' (v, _) -> dict.Remove(v) |> ignore
+    [| for keyValue in dict do yield keyValue.Value  |]
 
-let getVars : BoolExpr' [] -> (string * string) [] = fun exprs ->
-    exprs 
-    |> Seq.filter (function Var' (_, x) -> true | _ -> false) 
-    |> Seq.map (function Var' (v, x) -> (v, x) | _ -> failwith "oups") 
-    |> Seq.distinct
-    |> Seq.toArray
-
-
-let countVars : string -> BoolExpr' [] -> int = fun prefix exprs ->
-    exprs |> getVars |> Seq.length
-
-let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
-    let vars = exprs |> getVars |> Array.filter (fun (_, x) -> x.StartsWith("y")) |> Array.map snd 
-    let vars' = exprs |> getVars |> Array.filter (fun (_, x) -> x.StartsWith("y")) |> Array.map snd |> Array.mapi (fun i _ -> sprintf "x%d" i) 
-    exprs |> Array.map (function | Var' (v, x) when x.StartsWith("y") -> Var' (v, vars'.[Array.findIndex ((=) x) vars])
-                                 | And' _ | Or' _ | Not' _  | Var' _ as expr -> expr)
-
-
+let updateLeafVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
+    let exprs = exprs |> Seq.toArray
+    let lookupMap = exprs |> toMapBoolExpr
+    let dict = new Dictionary<string, string>()
+    let i = ref -1
+    let f : string -> string = fun name -> 
+        match Map.tryFind name lookupMap with
+        | None -> 
+            if dict.ContainsKey(name) then
+                dict.[name]
+            else 
+                incr i;
+                let v = sprintf "x%d" !i
+                dict.Add(name, v)
+                v
+        | Some _ ->
+            name
+    for i = 0 to exprs.Length - 1 do
+        match exprs.[i] with
+        | And' (v, x, y) -> exprs.[i] <- And' (v, f x, f y)
+        | Or' (v, x, y) -> exprs.[i] <- Or' (v, f x, f y)
+        | Not' (v, x) -> exprs.[i] <- Not' (v, f x)
+        | Var' (_, _) -> failwith "oups"
+    exprs
+   
 
 let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
            (bool [] -> bool) [] ->
