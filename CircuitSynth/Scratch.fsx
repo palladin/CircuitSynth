@@ -160,6 +160,32 @@ let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
         | Var' (v, _) -> dict.Remove(v) |> ignore
     [| for keyValue in dict do yield keyValue.Value  |]
 
+let updateLeafVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
+    let exprs = exprs |> Seq.toArray
+    let lookupMap = exprs |> toMapBoolExpr
+    let dict = new Dictionary<string, string>()
+    let i = ref -1
+    let f : string -> string = fun name -> 
+        match Map.tryFind name lookupMap with
+        | None -> 
+            if dict.ContainsKey(name) then
+                dict.[name]
+            else 
+                incr i;
+                let v = sprintf "x%d" !i
+                dict.Add(name, v)
+                v
+        | Some _ ->
+            name
+    for i = 0 to exprs.Length - 1 do
+        match exprs.[i] with
+        | And' (v, x, y) -> exprs.[i] <- And' (v, f x, f y)
+        | Or' (v, x, y) -> exprs.[i] <- Or' (v, f x, f y)
+        | Not' (v, x) -> exprs.[i] <- Not' (v, f x)
+        | Var' (_, _) -> failwith "oups"
+    exprs
+
+
 let n = 5
 let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 15 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
 let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]

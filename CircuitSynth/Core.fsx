@@ -291,7 +291,7 @@ let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
     | Not' (v, x) | Var' (v, x) -> v
 
 let toBoolExpr : BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr = fun exprs res ->
-    let map = [|0..7|] |> Array.map (fun i -> ("x" + string i, i)) |> Map.ofArray
+    let map = [|0..100|] |> Array.map (fun i -> ("x" + string i, i)) |> Map.ofArray
     fun vars ->
         let f : string -> BoolExpr = fun v -> if v.StartsWith("x") then vars.[Map.find v map] else Var v
         let exprs' = 
