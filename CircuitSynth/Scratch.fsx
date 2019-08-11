@@ -124,7 +124,7 @@ let isEven = (fun i -> i % 2 = 0)
 let equalTo n = (fun i -> i = n)
 
 
-let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> = 
+let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] = 
     fun n exprs ->
         let lookupMap = exprs |> toMapBoolExpr
         let rec rndBoolExpr' : string -> seq<BoolExpr'> = 
@@ -138,7 +138,7 @@ let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> =
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
-        rndBoolExpr' (getVarBoolExpr' exprs.[n])
+        rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
 
 
 
@@ -149,11 +149,11 @@ let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTri
 
 
 let vars = freshVars 8
-let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars 
+let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
 
 
 
-let exprs = rndBoolExpr 0 expr |> take' 5 |> Array.ofSeq |> updateVars
+let exprs = rndBoolExpr 3 expr |> updateVars
 
 
 equiv' (freshVars 8) opExpr (expr |> toBoolExpr)
