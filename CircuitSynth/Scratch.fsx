@@ -141,48 +141,6 @@ let rndBoolExpr : int -> BoolExpr' [] -> seq<BoolExpr'> =
         rndBoolExpr' (getVarBoolExpr' exprs.[n])
 
 
-let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs -> 
-    let dict = toDictBoolExpr exprs
-    let f : string -> string = fun name -> 
-        if dict.ContainsKey(name) then
-            match dict.[name] with
-            | Var' (v, x) -> 
-                dict.Remove(v) |> ignore 
-                x
-            | _ -> name
-        else name
-    for expr in exprs do
-        match expr with
-        | And' (v, x, y) -> dict.[v] <- And' (v, f x, f y)
-        | Or' (v, x, y) -> dict.[v] <- Or' (v, f x, f y)
-        | Not' (v, x) -> dict.[v] <- Not' (v, f x)
-        | Var' (v, _) -> dict.Remove(v) |> ignore
-    [| for keyValue in dict do yield keyValue.Value  |]
-
-let updateLeafVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
-    let exprs = exprs |> Seq.toArray
-    let lookupMap = exprs |> toMapBoolExpr
-    let dict = new Dictionary<string, string>()
-    let i = ref -1
-    let f : string -> string = fun name -> 
-        match Map.tryFind name lookupMap with
-        | None -> 
-            if dict.ContainsKey(name) then
-                dict.[name]
-            else 
-                incr i;
-                let v = sprintf "x%d" !i
-                dict.Add(name, v)
-                v
-        | Some _ ->
-            name
-    for i = 0 to exprs.Length - 1 do
-        match exprs.[i] with
-        | And' (v, x, y) -> exprs.[i] <- And' (v, f x, f y)
-        | Or' (v, x, y) -> exprs.[i] <- Or' (v, f x, f y)
-        | Not' (v, x) -> exprs.[i] <- Not' (v, f x)
-        | Var' (_, _) -> failwith "oups"
-    exprs
 
 
 let n = 5
@@ -195,8 +153,7 @@ let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars
 
 
 
-let exprs = rndBoolExpr 0 expr |> take' 5 |> Array.ofSeq 
-exprs |> updateLeafVars
+let exprs = rndBoolExpr 0 expr |> take' 5 |> Array.ofSeq |> updateVars
 
 
 equiv' (freshVars 8) opExpr (expr |> toBoolExpr)
