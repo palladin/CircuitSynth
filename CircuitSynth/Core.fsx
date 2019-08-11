@@ -285,13 +285,22 @@ let toBoolExpr' : BoolExpr -> BoolExpr' []  = fun expr ->
 
     expr |> toBoolExprs |> Array.map f
 
+let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
+    match expr with 
+    | And' (v, x, y) | Or' (v, x, y) -> v 
+    | Not' (v, x) | Var' (v, x) -> v
 
-let toBoolExpr : BoolExpr' [] -> BoolExpr = fun exprs ->
-    exprs |> Array.map (function | And' (v, x, y) -> Eq [|Var v|] [|And [|Var x; Var y|]|]
-                                 | Or' (v, x, y) -> Eq [|Var v|] [|Or [|Var x; Var y|]|]
-                                 | Not' (v, x) -> Eq [|Var v|] [|Not (Var x)|]
-                                 | Var' (v, x) -> Eq [|Var v|] [|(Var x)|]) 
-          |> And 
+let toBoolExpr : BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr = fun exprs res ->
+    let map = [|0..7|] |> Array.map (fun i -> ("x" + string i, i)) |> Map.ofArray
+    fun vars ->
+        let f : string -> BoolExpr = fun v -> if v.StartsWith("x") then vars.[Map.find v map] else Var v
+        let exprs' = 
+            exprs |> Array.map (function | And' (v, x, y) -> Eq [|Var v|] [|And [|f x; f y|]|]
+                                         | Or' (v, x, y) -> Eq [|Var v|] [|Or [|f x; f y|]|]
+                                         | Not' (v, x) -> Eq [|Var v|] [|Not (f x)|]
+                                         | Var' (v, x) -> failwith "oups") 
+
+        And <| Array.append [|Eq [|res|] [|Var <| getVarBoolExpr' exprs.[0]|]|] exprs'
     
 let toMapBoolExpr : BoolExpr' [] -> Map<string, BoolExpr'> = fun exprs ->
     exprs |> Array.map (fun expr -> match expr with 
@@ -321,11 +330,7 @@ let countOps' : BoolExpr' [] -> int = fun exprs ->
                                  | Not' (v, x) -> 1
                                  | Var' (v, x) -> 0)
           |> Array.sum
-
-let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
-    match expr with 
-    | And' (v, x, y) | Or' (v, x, y) -> v 
-    | Not' (v, x) | Var' (v, x) -> v
+         
 
 let eval' : (string * bool) [] -> BoolExpr' [] -> bool = fun map exprs ->
     let lookupMap = exprs |> toMapBoolExpr

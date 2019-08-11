@@ -166,18 +166,15 @@ let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTri
 
 
 let vars = freshVars 8
-let expr = opExpr (Var "res") vars |> toBoolExpr'
-
-expr |> removeVars
-
-rndBoolExpr 0 expr |> Seq.filter (function Var' (_, x) -> false | _ -> true) |> take' 5 |> Array.ofSeq 
+let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars 
 
 
-[| for i = 1 to 1000 do
-        yield equiv' (freshVars 8) opExpr opExpr' |]
+
+rndBoolExpr 0 expr |> take' 5 |> Array.ofSeq 
 
 
-[|1..10|] |> take' 20 |> Seq.toArray
+equiv' (freshVars 8) opExpr (expr |> toBoolExpr)
+
 
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
