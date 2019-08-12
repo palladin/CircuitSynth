@@ -128,26 +128,18 @@ let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
     let exprs = exprs |> Seq.toArray
     let lookupMap = exprs |> toMapBoolExpr
     let dict = new Dictionary<string, string>()
-    let x = ref -1
-    let y = ref -1
+    let i = ref -1
     let f : string -> string = fun name -> 
         match Map.tryFind name lookupMap with
         | None -> 
             if dict.ContainsKey(name) then
                 dict.[name]
             else 
-                incr x;
-                let v = sprintf "x%d" !x
+                incr i;
+                let v = sprintf "x%d" !i
                 dict.Add(name, v)
                 v
-        | Some _ ->
-            if dict.ContainsKey(name) then
-                dict.[name]
-            else 
-                incr y;
-                let v = sprintf "y%d" !y
-                dict.Add(name, v)
-                v
+        | Some _ -> name
     for i = 0 to exprs.Length - 1 do
         match exprs.[i] with
         | And' (v, x, y) -> exprs.[i] <- And' (f v, f x, f y)

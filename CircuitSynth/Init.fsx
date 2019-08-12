@@ -11,7 +11,7 @@ open Microsoft.Z3
 
 let rand = new System.Random()
 
-let timeout = TimeSpan.FromMinutes(2.0).TotalMilliseconds
+let timeout = TimeSpan.FromSeconds(30.0).TotalMilliseconds
 Microsoft.Z3.Global.ToggleWarningMessages(true)
 Microsoft.Z3.Global.SetParameter("parallel.enable", "false")
 Microsoft.Z3.Global.SetParameter("model_validate", "true")

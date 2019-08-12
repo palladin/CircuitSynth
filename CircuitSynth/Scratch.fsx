@@ -143,19 +143,22 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
 let baseSample () = randoms 0 final |> Seq.distinct |> Seq.take final |> Seq.toArray
 
 
-let (_, op, opStr, opExpr) = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 (baseSample ())
-let (_, op', opStr', opExpr') = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 (baseSample ())
+let exprs = [| for i = 1 to 3 do 
+                let (f, op, opStr, opExpr) = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 1 numOfSamples arityOfOps [||] 0 (baseSample ())
+                let vars = freshVars 8
+                let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
+                yield expr |]
 
 
-let vars = freshVars 8
-let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
+toBoolExpr  (snd exprs.[0]) (Var "res") (freshVars numOfVars)
+//let exprs = rndBoolExpr 3 expr |> updateVars
 
 
+[| for i = 0 to 2 do
+    for j = 0 to 2 do
+        if i <> j then
+            yield equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) |]
 
-let exprs = rndBoolExpr 3 expr |> updateVars
-
-
-equiv' (freshVars 8) opExpr (expr |> toBoolExpr)
 
 
 
