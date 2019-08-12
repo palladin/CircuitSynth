@@ -139,36 +139,35 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
                     | Var' (v, x) as expr -> failwith "oups"
         rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
 
-
 let baseSample () = randoms 0 final |> Seq.distinct |> Seq.take final |> Seq.toArray
 
-
-let exprs = [| for i = 1 to 10 do 
-                let (f, op, opStr, opExpr) = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 1 numOfSamples arityOfOps [||] 0 (baseSample ())
-                let vars = freshVars 8
-                let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
-                yield expr |]
-
-
+let population : unit -> BoolExpr' [] [] = fun () -> 
+    [| for i = 1 to 10 do 
+        let (f, op, opStr, opExpr) = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 1 numOfSamples arityOfOps [||] 0 (baseSample ())
+        let vars = freshVars 8
+        let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
+        yield expr |]
 
 
-let exprs' = 
+let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs -> 
     [| for expr in exprs  do yield [|1..10|] |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr 3 expr |> updateVars) [||]  ) |] 
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.toArray
 
-
-
 let matches : BoolExpr' [] [] -> (int * BoolExpr' []) [] = fun exprs -> 
     [| for i = 0 to exprs.Length - 1 do
         let c = 
-            [| for j = 0 to exprs.Length - 1 do
-                if i <> j then
-                    yield equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) |] 
+            [| for j = i + 1 to exprs.Length - 1 do
+                yield equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) |] 
             |> Seq.filter id
             |> Seq.length  
         yield c, exprs.[i]|] |> Array.sortBy (fun (c, _) -> -c)
+
+
+
+let exprs = population ()
+let exprs' = randomSubExprs exprs
         
 
 matches exprs'
