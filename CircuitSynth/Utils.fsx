@@ -62,3 +62,10 @@ let getSample : (int -> bool) -> int [] -> int -> int [] =
             |> Seq.take numOfSamples
             |> Seq.toArray  
         sample
+
+
+let tryWith : (unit -> 'T) -> 'T -> 'T = fun f e ->
+    try
+        f ()
+    with
+    | _ -> e
