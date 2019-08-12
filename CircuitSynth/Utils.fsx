@@ -50,10 +50,9 @@ let merge' : seq<seq<'a>> -> seq<'a> =
 let take' : int -> seq<'a> -> seq<'a> = 
     fun n xs -> System.Linq.Enumerable.Take(xs, n)
 
-let randoms : int -> int -> int -> seq<int> = fun seed min max ->
-    let random = new Random(seed)
+let randoms : int -> int -> seq<int> = fun min max ->
     seq { while true do
-            yield random.Next(min, max + 1) }
+            yield rand.Next(min, max + 1) }
 
 let getSample : (int -> bool) -> int [] -> int -> int [] = 
     fun verify baseSample numOfSamples ->

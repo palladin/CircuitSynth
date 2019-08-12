@@ -46,15 +46,15 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
               int -> int -> int -> int -> int -> int [] -> int [] -> int -> int [] -> ((int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr)) = 
     fun numOfVars opExprs ops opStrs verify n numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps ignore result baseSample ->
         let final = int (2.0 ** (float numOfVars))
-        let stats = Array.init final (fun _ -> 0)
+        let stats = Array.init final (fun i ->  0)
         if n = numOfTries || result = final then 
             ((fun i -> ops.[0] (toBits' numOfVars i)), ops.[0], opStrs.[0], opExprs.[0])
         else
             let rec run' : int -> int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
                 fun numOfSamples numOfInstrsIndex old ->
                     //let baseSample = randoms (int DateTime.Now.Ticks) 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
-                    let baseSample = stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd |> Array.map fst
-                    let sample = getSample verify baseSample numOfSamples
+                    let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
+                    let sample = getSample verify sample numOfSamples
                     let sample = Array.append sample ignore
                     if sample.Length <> (sample |> Array.distinct |> Array.length) then
                         failwithf "Duplicate elements - base %A - sample %A " baseSample sample
@@ -83,7 +83,7 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
                                 yield (numOfInstrs, status, result, instrs', watch.Elapsed)
                         }
                         |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
-                        |> Seq.take 6
+                        |> Seq.take 1
                         |> Seq.filter (fun (_, status, _, _, _) -> status = Status.SATISFIABLE)
                         |> Seq.tryHead
                     match result with
@@ -110,15 +110,12 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
 
 let freshVars numOfVars = [|0..numOfVars - 1|] |> Array.map (fun i -> Var ("x" + string i))
 
-let seed = int DateTime.Now.Ticks
-let random = new Random(seed)
-
 
 let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
-let numOfVars = 8
+let numOfVars = 5
 let final = int (2.0 ** (float numOfVars))
 
 let xors = (fun i -> xors <| toBits' numOfVars i)
@@ -143,11 +140,11 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
         rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
 
 
+let baseSample () = randoms 0 final |> Seq.distinct |> Seq.take final |> Seq.toArray
 
 
-let n = 5
-let (_, op, opStr, opExpr) = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 15 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
-let (_, op', opStr', opExpr') = run n opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 [|0..int (2.0 ** (float n)) - 1|]
+let (_, op, opStr, opExpr) = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 (baseSample ())
+let (_, op', opStr', opExpr') = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 13 numOfSamples arityOfOps [||] 0 (baseSample ())
 
 
 let vars = freshVars 8
