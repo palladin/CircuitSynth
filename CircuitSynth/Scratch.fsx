@@ -47,66 +47,64 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
     fun numOfVars opExprs ops opStrs verify n numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps ignore result baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let stats = Array.init final (fun i ->  0)
-        if n = numOfTries || result = final then 
-            ((fun i -> ops.[0] (toBits' numOfVars i)), ops.[0], opStrs.[0], opExprs.[0])
-        else
-            let rec run' : int -> int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
-                fun numOfSamples numOfInstrsIndex old ->
-                    //let baseSample = randoms (int DateTime.Now.Ticks) 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
-                    let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
-                    let sample = getSample verify sample numOfSamples
-                    let sample = Array.append sample ignore
-                    if sample.Length <> (sample |> Array.distinct |> Array.length) then
-                        failwithf "Duplicate elements - base %A - sample %A " baseSample sample
-                    if old.Length <> 0 then
-                        let (_, _, instrs', _) = old.[0]
-                        let f = evalInstrs' ops instrs'
-                        for i in [|0..final - 1|] do
-                            if f <| toBits' numOfVars i = verify i then
-                                stats.[i] <- stats.[i] + 1
-                        //printfn "Stats %A " (stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd)
 
-                    let result =
-                        seq {
-                            for numOfInstrs in {numOfInstrsIndex..100} do
-                                let availableOpExprs = 
-                                    if opExprs.Length > numOfOps then 
-                                        Array.append [|0|] 
-                                                        ([|1..numOfOps|] |> Array.map (fun i -> opExprs.Length - i))
-                                    else 
-                                        opExprs |> Array.mapi (fun i _ -> i)
-                                let watch = new Stopwatch()
-                                watch.Start()
-                                let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample [|0..final - 1|] arityOfOps numOfInstrs
-                                watch.Stop()
-                                printfn "%d %d %d %A %A %A" sample.Length n numOfInstrs availableOpExprs (status, result) watch.Elapsed
-                                yield (numOfInstrs, status, result, instrs', watch.Elapsed)
-                        }
-                        |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
-                        |> Seq.take 1
-                        |> Seq.filter (fun (_, status, _, _, _) -> status = Status.SATISFIABLE)
-                        |> Seq.tryHead
-                    match result with
-                    | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when result = final -> 
-                        printfn "%s" <| strInstrs opStrs arityOfOps instrs'
-                        (Status.SATISFIABLE, result, instrs', elapsed, sample)
-                    | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) ->
-                        printfn "%s" <| strInstrs opStrs arityOfOps instrs'
-                        run' (numOfSamples + 1) numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
-                    | None ->
-                        if old.Length = 0 then failwith "UNKNOWN"
-                        let (status, result, instrs', elapsed) = old.[0]
-                        printfn "%s" <| strInstrs opStrs arityOfOps instrs'
-                        (status, result, instrs', elapsed, sample)
-                    | _ -> failwith "oups"
-            let (status, result, instrs', elapsed, sample) = run' numOfSamples numOfInstrsIndex [||]
-            printfn "%d %A %A" n (status, result) elapsed
-            
-            let opExprs = (Array.append [|compileInstrs' opExprs arityOfOps instrs'|] opExprs) 
-            let ops = (Array.append [|evalInstrs' ops instrs'|] ops)
-            let opStrs = (Array.append [|toOpStr numOfVars|] opStrs)
-            let arityOfOps = Array.append [|numOfVars|] arityOfOps
-            run numOfVars opExprs ops opStrs verify (n + 1) numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps sample result baseSample
+        let rec run' : int -> int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
+            fun numOfSamples numOfInstrsIndex old ->
+                //let baseSample = randoms (int DateTime.Now.Ticks) 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
+                let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
+                let sample = getSample verify sample numOfSamples
+                let sample = Array.append sample ignore
+                if sample.Length <> (sample |> Array.distinct |> Array.length) then
+                    failwithf "Duplicate elements - base %A - sample %A " baseSample sample
+                if old.Length <> 0 then
+                    let (_, _, instrs', _) = old.[0]
+                    let f = evalInstrs' ops instrs'
+                    for i in [|0..final - 1|] do
+                        if f <| toBits' numOfVars i = verify i then
+                            stats.[i] <- stats.[i] + 1
+                    //printfn "Stats %A " (stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd)
+
+                let result =
+                    seq {
+                        for numOfInstrs in {numOfInstrsIndex..100} do
+                            let availableOpExprs = 
+                                if opExprs.Length > numOfOps then 
+                                    Array.append [|0|] 
+                                                    ([|1..numOfOps|] |> Array.map (fun i -> opExprs.Length - i))
+                                else 
+                                    opExprs |> Array.mapi (fun i _ -> i)
+                            let watch = new Stopwatch()
+                            watch.Start()
+                            let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample [|0..final - 1|] arityOfOps numOfInstrs
+                            watch.Stop()
+                            printfn "%d %d %d %A %A %A" sample.Length n numOfInstrs availableOpExprs (status, result) watch.Elapsed
+                            yield (numOfInstrs, status, result, instrs', watch.Elapsed)
+                    }
+                    |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
+                    |> Seq.take 1
+                    |> Seq.filter (fun (_, status, _, _, _) -> status = Status.SATISFIABLE)
+                    |> Seq.tryHead
+                match result with
+                | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when result = final -> 
+                    printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                    (Status.SATISFIABLE, result, instrs', elapsed, sample)
+                | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) ->
+                    printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                    run' (numOfSamples + 1) numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
+                | None ->
+                    if old.Length = 0 then failwith "UNKNOWN"
+                    let (status, result, instrs', elapsed) = old.[0]
+                    printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                    (status, result, instrs', elapsed, sample)
+                | _ -> failwith "oups"
+        let (status, result, instrs', elapsed, sample) = run' numOfSamples numOfInstrsIndex [||]
+        printfn "%d %A %A" n (status, result) elapsed
+
+        let opExpr = compileInstrs' opExprs arityOfOps instrs' 
+        let ops = evalInstrs' ops instrs'
+        let opStr = toOpStr numOfVars
+        let arityOfOp = numOfVars
+        ((fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr)
 
 
 
@@ -188,7 +186,7 @@ let ops' = Array.append [|eval' match'|] ops
 let opStrs' = Array.append [|toOpStr 0|] opStrs 
 let arityOfOps' = Array.append [|countVars match'|] arityOfOps
 
-
-let (f, op, opStr, opExpr) = run numOfVars opExprs' ops' opStrs' isPowerOfTwo 0 numOfTries opExprs'.Length 1 numOfSamples arityOfOps' [||] 0 (baseSample ())
+setTimeout(90.0)
+let (f, op, opStr, opExpr) = run numOfVars opExprs' ops' opStrs' isPowerOfTwo 0 numOfTries opExprs'.Length 8 numOfSamples arityOfOps' [||] 0 (baseSample ())
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
