@@ -248,9 +248,7 @@ let verify : int -> (int -> bool) -> (int -> bool) -> int = fun numOfVars f g ->
 
 
 
-let rec split : int -> seq<int * int> = fun n -> 
-    seq { for i in {0..n} -> (i, n - i) }
-
+let freshVars numOfVars = [|0..numOfVars - 1|] |> Array.map (fun i -> Var ("x" + string i))
    
 
 let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
