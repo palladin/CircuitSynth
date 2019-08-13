@@ -104,7 +104,7 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             
             let opExprs = (Array.append [|compileInstrs' opExprs arityOfOps instrs'|] opExprs) 
             let ops = (Array.append [|evalInstrs' ops instrs'|] ops)
-            let opStrs = (Array.append [|fun args -> sprintf "func%d(%s)" numOfVars (String.concat "," args)|] opStrs)
+            let opStrs = (Array.append [|opStr numOfVars|] opStrs)
             let arityOfOps = Array.append [|numOfVars|] arityOfOps
             run numOfVars opExprs ops opStrs verify (n + 1) numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps sample result baseSample
 
@@ -155,13 +155,21 @@ let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs ->
     |> Seq.toArray
 
 let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs -> 
+    let dict = new Dictionary<int, int>()
     [| for i = 0 to exprs.Length - 1 do
-        let c = 
-            [| for j = i + 1 to exprs.Length - 1 do
-                yield equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) |] 
-            |> Seq.filter id
-            |> Seq.length  
-        yield i, c, exprs.[i]|] |> Array.sortBy (fun (_, c, _) -> -c)
+        if dict.ContainsKey(i) then
+            yield i, -1, [||]
+        else
+            dict.Add(i, i)
+            let c = 
+                [| for j = i + 1 to exprs.Length - 1 do
+                    let v = equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) 
+                    if v then
+                        dict.Add(j, j)
+                    yield v |] 
+                |> Seq.filter id
+                |> Seq.length  
+            yield i, c, exprs.[i]|] |> Array.sortBy (fun (_, c, _) -> -c)
 
 
 
