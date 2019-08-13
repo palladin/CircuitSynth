@@ -50,17 +50,22 @@ let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
     | And' (v, x, y) | Or' (v, x, y) -> v 
     | Not' (v, x) | Var' (v, x) -> v
 
-let toBoolExpr : BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr = fun exprs res ->
-    let map = [|0..100|] |> Array.map (fun i -> ("x" + string i, i)) |> Map.ofArray
-    fun vars ->
-        let f : string -> BoolExpr = fun v -> if v.StartsWith("x") then vars.[Map.find v map] else Var v
-        let exprs' = 
-            exprs |> Array.map (function | And' (v, x, y) -> Eq [|Var v|] [|And [|f x; f y|]|]
-                                         | Or' (v, x, y) -> Eq [|Var v|] [|Or [|f x; f y|]|]
-                                         | Not' (v, x) -> Eq [|Var v|] [|Not (f x)|]
-                                         | Var' (v, x) -> failwith "oups") 
+let toBoolExpr : BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr = fun exprs res vars ->
+    let dict = new Dictionary<string, BoolExpr>()
+    for i = 0 to vars.Length - 1 do
+        dict.Add("x" + string i, vars.[i]) 
+    let f : string -> BoolExpr = fun v -> if not <| dict.ContainsKey(v) then 
+                                            let fresh = FreshVar ()
+                                            dict.Add(v, fresh)
+                                            fresh
+                                          else dict.[v]
+    let exprs' = 
+        exprs |> Array.map (function | And' (v, x, y) -> Eq [|f v|] [|And [|f x; f y|]|]
+                                     | Or' (v, x, y) -> Eq [|f v|] [|Or [|f x; f y|]|]
+                                     | Not' (v, x) -> Eq [|f v|] [|Not (f x)|]
+                                     | Var' (v, x) -> failwith "oups") 
 
-        And <| Array.append [|Eq [|res|] [|Var <| getVarBoolExpr' exprs.[0]|]|] exprs'
+    And <| Array.append [|Eq [|res|] [|f <| getVarBoolExpr' exprs.[0]|]|] exprs'
     
 let toMapBoolExpr : BoolExpr' [] -> Map<string, BoolExpr'> = fun exprs ->
     exprs |> Array.map (fun expr -> match expr with 

@@ -249,7 +249,7 @@ let verify : int -> (int -> bool) -> (int -> bool) -> int = fun numOfVars f g ->
 
 
 let freshVars numOfVars = [|0..numOfVars - 1|] |> Array.map (fun i -> Var ("x" + string i))
-let opStr : int -> string [] -> string = fun i args -> sprintf "func%d(%s)" i (String.concat "," args)
+let toOpStr : int -> string [] -> string = fun i args -> sprintf "func%d(%s)" i (String.concat "," args)
 
 let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
            (bool [] -> bool) [] ->

@@ -104,7 +104,7 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             
             let opExprs = (Array.append [|compileInstrs' opExprs arityOfOps instrs'|] opExprs) 
             let ops = (Array.append [|evalInstrs' ops instrs'|] ops)
-            let opStrs = (Array.append [|opStr numOfVars|] opStrs)
+            let opStrs = (Array.append [|toOpStr numOfVars|] opStrs)
             let arityOfOps = Array.append [|numOfVars|] arityOfOps
             run numOfVars opExprs ops opStrs verify (n + 1) numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps sample result baseSample
 
@@ -180,10 +180,15 @@ let exprs' = randomSubExprs exprs
 let matches' = matches exprs'
 let (_, _, match') = matches'.[0]
 
+
+
+
 let opExprs' = Array.append [|toBoolExpr match'|] opExprs
 let ops' = Array.append [|eval' match'|] ops
-let opStrs' = Array.append [|opStr 0|] opStrs 
+let opStrs' = Array.append [|toOpStr 0|] opStrs 
 let arityOfOps' = Array.append [|countVars match'|] arityOfOps
+
+
 let (f, op, opStr, opExpr) = run numOfVars opExprs' ops' opStrs' isPowerOfTwo 0 numOfTries opExprs'.Length 1 numOfSamples arityOfOps' [||] 0 (baseSample ())
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
