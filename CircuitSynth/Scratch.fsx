@@ -164,7 +164,7 @@ let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs ->
             let c = 
                 [| for j = i + 1 to exprs.Length - 1 do
                     let v = equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) 
-                    if v then
+                    if v && (not <| dict.ContainsKey(j)) then
                         dict.Add(j, j)
                     yield v |] 
                 |> Seq.filter id
@@ -177,7 +177,13 @@ let exprs = population ()
 let exprs' = randomSubExprs exprs
 
 
-matches exprs'
+let matches' = matches exprs'
+let (_, _, match') = matches'.[0]
 
+let opExprs' = Array.append [|toBoolExpr match'|] opExprs
+let ops' = Array.append [|eval' match'|] ops
+let opStrs' = Array.append [|opStr 0|] opStrs 
+let arityOfOps' = Array.append [|countVars match'|] arityOfOps
+let (f, op, opStr, opExpr) = run numOfVars opExprs' ops' opStrs' isPowerOfTwo 0 numOfTries opExprs'.Length 1 numOfSamples arityOfOps' [||] 0 (baseSample ())
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
