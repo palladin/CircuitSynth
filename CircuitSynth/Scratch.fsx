@@ -108,7 +108,6 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             let arityOfOps = Array.append [|numOfVars|] arityOfOps
             run numOfVars opExprs ops opStrs verify (n + 1) numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps sample result baseSample
 
-let freshVars numOfVars = [|0..numOfVars - 1|] |> Array.map (fun i -> Var ("x" + string i))
 
 
 let numOfTries = 1
@@ -150,25 +149,25 @@ let population : unit -> BoolExpr' [] [] = fun () ->
 
 
 let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs -> 
-    [| for expr in exprs  do yield [|1..10|] |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr 3 expr |> updateVars) [||]  ) |] 
+    [| for expr in exprs  do yield [|1..10|] |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr 3 expr |> updateVars) [||]) |> Seq.distinct |] 
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.toArray
 
-let matches : BoolExpr' [] [] -> (int * BoolExpr' []) [] = fun exprs -> 
+let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs -> 
     [| for i = 0 to exprs.Length - 1 do
         let c = 
             [| for j = i + 1 to exprs.Length - 1 do
                 yield equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) |] 
             |> Seq.filter id
             |> Seq.length  
-        yield c, exprs.[i]|] |> Array.sortBy (fun (c, _) -> -c)
+        yield i, c, exprs.[i]|] |> Array.sortBy (fun (_, c, _) -> -c)
 
 
 
 let exprs = population ()
 let exprs' = randomSubExprs exprs
-        
+
 
 matches exprs'
 

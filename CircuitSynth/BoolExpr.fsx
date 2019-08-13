@@ -90,20 +90,35 @@ let countOps' : BoolExpr' [] -> int = fun exprs ->
                                  | Not' (v, x) -> 1
                                  | Var' (v, x) -> 0)
           |> Array.sum
-         
 
-let eval' : (string * bool) [] -> BoolExpr' [] -> bool = fun map exprs ->
+let countVars : BoolExpr' [] -> int = fun exprs ->
+    exprs |> Array.map (function | And' (v, x, y) -> [|x; y|]
+                                 | Or' (v, x, y) -> [|x; y|]
+                                 | Not' (v, x) -> [|x|]
+                                 | _ -> failwith "oups")
+          |> Array.concat
+          |> Array.filter (fun x -> x.StartsWith("x"))
+          |> Array.distinct
+          |> Array.length
+
+
+let eval' : BoolExpr' [] -> bool [] -> bool = fun exprs vars ->
+    let numOfVars = vars.Length
+    let map = ([|0..numOfVars - 1|] |> Array.map (fun i -> "x" + string i), vars) ||> Array.zip  
     let lookupMap = exprs |> toMapBoolExpr
     let rec run : string -> bool = fun name ->
+        let f : string -> bool = fun x -> 
+            if x.StartsWith("x") then  
+                map |> Array.find (fun (key, _) -> key = x) |> snd
+            else run x
         match Map.find name lookupMap with
         | And' (v, x, y) -> 
-            run x && run y 
+            f x && f y
         | Or' (v, x, y) -> 
-            run x || run y 
+            f x || f y 
         | Not' (v, x) ->
-            run x |> not
-        | Var' (v, x) when x.StartsWith("x") -> map |> Array.find (fun (key, _) -> key = x) |> snd
-        | Var' (v, x) -> run x
+            f x |> not
+        | _ -> failwith "oups"
     run (getVarBoolExpr' exprs.[0])
 
 let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs -> 

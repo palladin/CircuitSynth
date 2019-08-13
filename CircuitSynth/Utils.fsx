@@ -69,3 +69,7 @@ let tryWith : (unit -> 'T) -> 'T -> 'T = fun f e ->
         f ()
     with
     | _ -> e
+
+
+let rec split : int -> seq<int * int> = fun n -> 
+    seq { for i in {0..n} -> (i, n - i) }
