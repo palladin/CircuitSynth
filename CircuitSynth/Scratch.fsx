@@ -147,17 +147,17 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
 
 let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
 
-let population : unit -> BoolExpr' [] [] = fun () -> 
-    setTimeout(5.0)
+let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct -> 
+    setTimeout(20.0)
     [| for i = 1 to 10 do 
-        let (f, op, opStr, opExpr) = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 1 numOfSamples arityOfOps [||] 0 (baseSample ())
+        let (f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 numOfTries opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps [||] 0 (baseSample ())
         let vars = freshVars 8
         let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
         yield expr |]
 
 
 let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs -> 
-    [| for expr in exprs  do yield [|1..10|] |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr 3 expr |> updateVars) [||]) |> Seq.distinct |] 
+    [| for expr in exprs  do yield [|1..expr.Length|] |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr (rand.Next(3, expr.Length)) expr |> updateVars) [||]) |> Seq.distinct |] 
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.toArray
@@ -192,17 +192,18 @@ let updateOps : BoolExpr' [] [] -> int -> Ops -> Ops = fun exprs n ops ->
 
 
 
-let exprs = population ()
+let exprs = population isPowerOfTwo opStruct
 let exprs' = randomSubExprs exprs
 
 
 let matches' = matches exprs'
 
-let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) 1 opStruct
+let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) 6 opStruct
 
-setTimeout(120.0)
+setTimeout(180.0)
 let (f, op, opStr, opExpr) = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPowerOfTwo 0 3 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps[||] 0 (baseSample ())
 
+run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs isPrime 0 10 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps[||] 0 (baseSample ())
 
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
