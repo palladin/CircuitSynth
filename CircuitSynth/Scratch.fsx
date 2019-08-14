@@ -13,6 +13,13 @@ open Init
 open Core
 open BoolExpr
 
+
+
+type Ops = { OpExprs : (BoolExpr -> BoolExpr [] -> BoolExpr) [];
+             Ops : (bool [] -> bool) [];
+             OpStrs : (string [] -> string) [];
+             ArityOps : int [] }
+
 let arityOfOps = [|2;
                    2;
                    1;
@@ -38,6 +45,8 @@ let opStrs : (string [] -> string) [] =
       (fun args -> sprintf "not %s" args.[0]);
       //(fun args -> sprintf "%s xor %s" args.[0] args.[1])
     |]
+
+let opStruct : Ops = { OpExprs = opExprs; Ops = ops; OpStrs = opStrs; ArityOps = arityOfOps  }
 
 let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
               (bool [] -> bool) [] ->
@@ -171,24 +180,28 @@ let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs ->
             yield i, c, exprs.[i]|] |> Array.sortBy (fun (_, c, _) -> -c)
 
 
+let updateOps : BoolExpr' [] [] -> int -> Ops -> Ops = fun exprs n ops -> 
+    ([|0..exprs.Length - 1|], exprs)
+    ||> Array.zip
+    |> Array.take n 
+    |> Array.fold (fun ops (i, expr) -> 
+                                   { OpExprs = Array.append [|toBoolExpr expr|] ops.OpExprs;
+                                     Ops = Array.append [|eval' expr|] ops.Ops;
+                                     OpStrs = Array.append [|toOpStr i|] ops.OpStrs;
+                                     ArityOps = Array.append [|countVars expr|] ops.ArityOps } ) ops
+
+
 
 let exprs = population ()
 let exprs' = randomSubExprs exprs
 
 
 let matches' = matches exprs'
-let (_, _, match') = matches'.[0]
 
+let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) 1 opStruct
 
-
-
-let opExprs' = Array.append [|toBoolExpr match'|] opExprs
-let ops' = Array.append [|eval' match'|] ops
-let opStrs' = Array.append [|toOpStr 0|] opStrs 
-let arityOfOps' = Array.append [|countVars match'|] arityOfOps
-
-setTimeout(90.0)
-let (f, op, opStr, opExpr) = run numOfVars opExprs' ops' opStrs' isPowerOfTwo 0 3 opExprs'.Length 1 numOfSamples arityOfOps' [||] 0 (baseSample ())
+setTimeout(120.0)
+let (f, op, opStr, opExpr) = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPowerOfTwo 0 3 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps[||] 0 (baseSample ())
 
 
 
