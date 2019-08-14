@@ -150,7 +150,7 @@ let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> S
 let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct -> 
     setTimeout(20.0)
     [| for i = 1 to 10 do 
-        let (f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 numOfTries opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps [||] 0 (baseSample ())
+        let (f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 numOfTries opStruct.OpExprs.Length 3 numOfSamples opStruct.ArityOps [||] 0 (baseSample ())
         let vars = freshVars 8
         let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
         yield expr |]
@@ -177,7 +177,9 @@ let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs ->
                     yield v |] 
                 |> Seq.filter id
                 |> Seq.length  
-            yield i, c, exprs.[i]|] |> Array.sortBy (fun (_, c, _) -> -c)
+            yield i, c, exprs.[i]|] 
+    |> Array.filter (fun (_, c, _) -> c > 0)
+    |> Array.sortBy (fun (_, c, _) -> -c)
 
 
 let updateOps : BoolExpr' [] [] -> int -> Ops -> Ops = fun exprs n ops -> 
@@ -192,18 +194,23 @@ let updateOps : BoolExpr' [] [] -> int -> Ops -> Ops = fun exprs n ops ->
 
 
 
-let exprs = population isPowerOfTwo opStruct
+let exprs = population isPrime opStruct
 let exprs' = randomSubExprs exprs
 
 
 let matches' = matches exprs'
 
-let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) 6 opStruct
+let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) 5 opStruct
 
-setTimeout(180.0)
-let (f, op, opStr, opExpr) = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPowerOfTwo 0 3 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps[||] 0 (baseSample ())
+setTimeout(20.0)
+let (f, op, opStr, opExpr) = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPrime 0 10 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps[||] 0 (baseSample ())
 
-run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs isPrime 0 10 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps[||] 0 (baseSample ())
 
+
+
+
+let (_, _, _, opExpr') = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs isPowerOfTwo 0 20 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps[||] 0 (baseSample ())
+
+opExpr' (Var "res") (freshVars 8) |>  simplify |> string
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors

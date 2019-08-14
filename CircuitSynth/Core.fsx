@@ -107,9 +107,21 @@ let evalInstrs : int [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> Vars -> I
                     availableOpExprs 
                     |> Array.map (fun i -> If (Eq instr.Op (toBits opBitSize i)) resultVars.[i] False)
                     |> Or
-                
+
                 yield And [|And resultOps; Eq [|instr.Value|] [|value|]; And args |] |]
 
+let rec simplify : BoolExpr -> BoolExpr = fun expr ->
+    let goal = ctx.MkGoal()
+    goal.Add(expr)
+    let applyResult = ctx.MkTactic("ctx-solver-simplify").Apply(goal)
+    let expr' = 
+        if applyResult.Subgoals.[0].Formulas.Length = 0 then
+            expr
+        else if applyResult.Subgoals.[0].Formulas.Length = 1 then
+            applyResult.Subgoals.[0].Formulas.[0]
+        else 
+            applyResult.Subgoals.[0].Formulas |> Array.reduce (fun left right -> And [|left; right|])
+    expr'
 
 let equiv' : BoolExpr [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) -> (BoolExpr -> BoolExpr [] -> BoolExpr) -> bool = 
     fun freshVars f g ->
