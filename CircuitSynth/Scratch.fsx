@@ -81,7 +81,7 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
                             yield (numOfInstrs, status, result, instrs', watch.Elapsed)
                     }
                     |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
-                    |> Seq.take 1
+                    |> Seq.take numOfTries
                     |> Seq.filter (fun (_, status, _, _, _) -> status = Status.SATISFIABLE)
                     |> Seq.tryHead
                 match result with
@@ -136,9 +136,10 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
                     | Var' (v, x) as expr -> failwith "oups"
         rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
 
-let baseSample () = randoms 0 final |> Seq.distinct |> Seq.take final |> Seq.toArray
+let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
 
 let population : unit -> BoolExpr' [] [] = fun () -> 
+    setTimeout(5.0)
     [| for i = 1 to 10 do 
         let (f, op, opStr, opExpr) = run numOfVars opExprs ops opStrs isPowerOfTwo 0 numOfTries opExprs.Length 1 numOfSamples arityOfOps [||] 0 (baseSample ())
         let vars = freshVars 8
@@ -187,6 +188,8 @@ let opStrs' = Array.append [|toOpStr 0|] opStrs
 let arityOfOps' = Array.append [|countVars match'|] arityOfOps
 
 setTimeout(90.0)
-let (f, op, opStr, opExpr) = run numOfVars opExprs' ops' opStrs' isPowerOfTwo 0 numOfTries opExprs'.Length 8 numOfSamples arityOfOps' [||] 0 (baseSample ())
+let (f, op, opStr, opExpr) = run numOfVars opExprs' ops' opStrs' isPowerOfTwo 0 3 opExprs'.Length 1 numOfSamples arityOfOps' [||] 0 (baseSample ())
+
+
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
