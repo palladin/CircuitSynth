@@ -81,7 +81,7 @@ let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> S
 
 let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct -> 
     [| for i = 1 to 10 do 
-        let (f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 numOfTries opStruct.OpExprs.Length 3 numOfSamples opStruct.ArityOps 0 (baseSample ())
+        let (f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 3 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps 0 (baseSample ())
         let vars = freshVars 8
         let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
         yield expr |]
