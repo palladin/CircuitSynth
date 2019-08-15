@@ -113,10 +113,9 @@ let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs ->
     |> Array.sortBy (fun (_, c, _) -> -c)
 
 
-let updateOps : BoolExpr' [] [] -> int -> Ops -> Ops = fun exprs n ops -> 
+let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops -> 
     ([|0..exprs.Length - 1|], exprs)
     ||> Array.zip
-    |> Array.take n 
     |> Array.fold (fun ops (i, expr) -> 
                                    { OpExprs = Array.append [|toBoolExpr expr|] ops.OpExprs;
                                      Ops = Array.append [|eval' expr|] ops.Ops;
@@ -132,12 +131,15 @@ let rec exec : Ops -> seq<unit> = fun opStruct ->
         let matches' = matches exprs'
         printfn "%A" matches'
         yield ()
-        let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) 5 opStruct
-        let _ = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPrime 0 10 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps 0 (baseSample ())
+        let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) opStruct
+        let (_, _, _, opExpr') = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPrime 0 10 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps 0 (baseSample ())
         yield ()
         yield! exec opStruct' 
     }
 
+let enum = (exec opStruct).GetEnumerator()
+
+enum.MoveNext()
 
 let (_, _, _, opExpr') = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs isPowerOfTwo 0 20 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps 0 (baseSample ())
 
