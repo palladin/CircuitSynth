@@ -84,7 +84,8 @@ let toDictBoolExpr : BoolExpr' [] -> Dictionary<string, BoolExpr'> = fun exprs -
                                          | Not' (v, x) -> (v, expr)
                                          | Var' (v, x) -> (v, expr))
     for (v, expr) in vars do
-        dict.Add(v, expr)
+        if not <| dict.ContainsKey(v) then
+            dict.Add(v, expr)
     dict
           
     

@@ -87,8 +87,9 @@ let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct ->
         yield expr |]
 
 
+
 let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs -> 
-    [| for expr in exprs  do yield [|1..expr.Length|] |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr (rand.Next(3, expr.Length)) expr |> updateVars) [||]) |> Seq.distinct |] 
+    [| for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr (rand.Next(3, expr.Length)) expr |> updateVars) [||]) |> Seq.distinct |> Seq.take expr.Length |] 
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.toArray
@@ -137,6 +138,7 @@ let rec exec : Ops -> seq<unit> = fun opStruct ->
         let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
         setTimeout(120.0)
         let (_, _, _, opExpr') = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPrime 0 10 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps 0 (baseSample ())
+        printfn "%A" (opExpr' (Var "res") (freshVars 8) |> toBoolExpr' |> removeVars)
         yield ()
         yield! exec opStruct' 
     }
