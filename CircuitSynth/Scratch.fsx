@@ -46,7 +46,7 @@ let opStrs : (string [] -> string) [] =
       //(fun args -> sprintf "%s xor %s" args.[0] args.[1])
     |]
 
-let opStruct : Ops = { OpExprs = opExprs; Ops = ops; OpStrs = opStrs; ArityOps = arityOfOps  }
+let getOpStruct : unit -> Ops = fun () -> { OpExprs = opExprs; Ops = ops; OpStrs = opStrs; ArityOps = arityOfOps  }
 
 
 let numOfTries = 1
@@ -109,7 +109,6 @@ let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs ->
                 |> Seq.filter id
                 |> Seq.length  
             yield i, c, exprs.[i]|] 
-    |> Array.filter (fun (_, c, _) -> c > 0)
     |> Array.sortBy (fun (_, c, _) -> -c)
 
 
@@ -127,22 +126,24 @@ let rec exec : Ops -> seq<unit> = fun opStruct ->
     seq {
         setTimeout(20.0)
         let exprs = population isPrime opStruct
+        printfn "%A" exprs
+        yield ()
         let exprs' = randomSubExprs exprs
+        printfn "%A" exprs'
+        yield ()
         let matches' = matches exprs'
         printfn "%A" matches'
         yield ()
-        let opStruct' = updateOps (matches' |> Array.map (fun (_, _, expr) -> expr)) opStruct
+        let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
+        setTimeout(120.0)
         let (_, _, _, opExpr') = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPrime 0 10 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps 0 (baseSample ())
         yield ()
         yield! exec opStruct' 
     }
 
-let enum = (exec opStruct).GetEnumerator()
+let enum = (exec <| getOpStruct ()).GetEnumerator()
 
 enum.MoveNext()
 
-let (_, _, _, opExpr') = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs isPowerOfTwo 0 20 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps 0 (baseSample ())
-
-opExpr' (Var "res") (freshVars 8) |>  simplify |> string
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
