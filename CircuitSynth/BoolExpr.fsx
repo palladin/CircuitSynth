@@ -135,10 +135,8 @@ let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
         if dict.ContainsKey(name) then
             match dict.[name] with
             | Var' (v, x) when x.StartsWith("x") ->
-                dict.Remove(v) |> ignore 
                 x
             | Var' (v, x) -> 
-                dict.Remove(v) |> ignore 
                 f x
             | _ -> name
         else name

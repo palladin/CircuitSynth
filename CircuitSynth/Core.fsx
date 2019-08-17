@@ -326,8 +326,9 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
               (bool [] -> bool) [] ->
               (string [] -> string) [] -> 
               (int -> bool) -> 
-              int -> int -> int -> int -> int -> int [] -> int -> int [] -> (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr)) = 
-    fun numOfVars opExprs ops opStrs verify n numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps result baseSample ->
+              int -> int -> int -> int -> int [] -> int [] -> 
+              (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr)) = 
+    fun numOfVars opExprs ops opStrs verify numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let stats = Array.init final (fun i ->  0)
 
@@ -359,7 +360,7 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
                             watch.Start()
                             let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample [|0..final - 1|] arityOfOps numOfInstrs
                             watch.Stop()
-                            printfn "%d %d %d %A %A %A" sample.Length n numOfInstrs availableOpExprs (status, result) watch.Elapsed
+                            printfn "%d %d %A %A %A" sample.Length numOfInstrs availableOpExprs (status, result) watch.Elapsed
                             yield (numOfInstrs, status, result, instrs', watch.Elapsed)
                     }
                     |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
@@ -380,7 +381,7 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
                     (status, result, instrs', elapsed, sample)
                 | _ -> failwith "oups"
         let (status, result, instrs', elapsed, sample) = run' numOfSamples numOfInstrsIndex [||]
-        printfn "%d %A %A" n (status, result) elapsed
+        printfn "%A %A" (status, result) elapsed
 
         let opExpr = compileInstrs' opExprs arityOfOps instrs' 
         let ops = evalInstrs' ops instrs'
