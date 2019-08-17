@@ -81,7 +81,7 @@ let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> S
 
 let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct -> 
     [| for i = 1 to 10 do 
-        let (result, f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 3 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps 0 (baseSample ())
+        let (result, f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 1 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps 0 (baseSample ())
         let vars = freshVars 8
         let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
         yield expr |]
@@ -138,11 +138,16 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
         setTimeout(5.0)
         let (result, _, _, _, opExpr') = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs f 0 1 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps 0 (baseSample ())
-        printfn  "%A" <| opExpr' (Var "res") (freshVars 8)
+        let expr = opExpr' (Var "res") (freshVars 8)
+        printfn  "%A" expr 
         yield ()
-        printf "%A" (opExpr' (Var "res") (freshVars 8) |> toBoolExpr')
+        let expr' = expr |> toBoolExpr'
+        printf "%A" expr'
         yield ()
-        printfn "%d - %d" result <| verify numOfVars f (fun i -> let g = (opExpr' (Var "res") (freshVars 8) |> toBoolExpr' |> removeVars |> eval') in g (toBits' numOfVars i))
+        let expr'' = expr' |> removeVars
+        printf "%A" expr''
+        yield ()
+        printfn "%d - %d" result <| verify numOfVars f (fun i -> let g = expr'' |> eval' in g (toBits' numOfVars i))
         yield ()
         yield! exec f opStruct' 
     }

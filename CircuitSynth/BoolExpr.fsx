@@ -42,7 +42,7 @@ let toBoolExpr' : BoolExpr -> BoolExpr' []  = fun expr ->
         | Eq (Var v, Not (Var x)) -> Not' (v, x)
         | Eq (Var x, Var y) -> Var' (x, y)
         | _ -> failwithf "oups %A - %d" expr expr.NumArgs
-
+        
     expr |> toBoolExprs |> Array.map f
 
 let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
@@ -116,24 +116,30 @@ let eval' : BoolExpr' [] -> bool [] -> bool = fun exprs vars ->
             if x.StartsWith("x") then  
                 map |> Array.find (fun (key, _) -> key = x) |> snd
             else run x
-        match Map.find name lookupMap with
-        | And' (v, x, y) -> 
-            f x && f y
-        | Or' (v, x, y) -> 
-            f x || f y 
-        | Not' (v, x) ->
-            f x |> not
-        | _ -> failwith "oups"
+        match Map.tryFind name lookupMap with
+        | Some expr -> 
+            match expr with
+            | And' (v, x, y) -> 
+                f x && f y
+            | Or' (v, x, y) -> 
+                f x || f y 
+            | Not' (v, x) ->
+                f x |> not
+            | _ -> failwith "oups"
+        | None -> failwithf "not found %s" name
     run (getVarBoolExpr' exprs.[0])
 
 let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs -> 
     let dict = toDictBoolExpr exprs
-    let f : string -> string = fun name -> 
+    let rec f : string -> string = fun name -> 
         if dict.ContainsKey(name) then
             match dict.[name] with
-            | Var' (v, x) -> 
+            | Var' (v, x) when x.StartsWith("x") ->
                 dict.Remove(v) |> ignore 
                 x
+            | Var' (v, x) -> 
+                dict.Remove(v) |> ignore 
+                f x
             | _ -> name
         else name
     for expr in exprs do
