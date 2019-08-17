@@ -81,7 +81,7 @@ let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> S
 
 let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct -> 
     [| for i = 1 to 10 do 
-        let (f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 3 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps 0 (baseSample ())
+        let (result, f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 0 3 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps 0 (baseSample ())
         let vars = freshVars 8
         let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
         yield expr |]
@@ -123,10 +123,10 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
                                      ArityOps = Array.append [|countVars expr|] ops.ArityOps } ) ops
 
 
-let rec exec : Ops -> seq<unit> = fun opStruct -> 
+let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
     seq {
-        setTimeout(20.0)
-        let exprs = population isPrime opStruct
+        setTimeout(5.0)
+        let exprs = population f opStruct
         printfn "%A" exprs
         yield ()
         let exprs' = randomSubExprs exprs
@@ -136,14 +136,18 @@ let rec exec : Ops -> seq<unit> = fun opStruct ->
         printfn "%A" matches'
         yield ()
         let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
-        setTimeout(120.0)
-        let (_, _, _, opExpr') = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs isPrime 0 10 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps 0 (baseSample ())
-        printfn "%A" (opExpr' (Var "res") (freshVars 8) |> toBoolExpr' |> removeVars)
+        setTimeout(5.0)
+        let (result, _, _, _, opExpr') = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs f 0 1 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps 0 (baseSample ())
+        printfn  "%A" <| opExpr' (Var "res") (freshVars 8)
         yield ()
-        yield! exec opStruct' 
+        printf "%A" (opExpr' (Var "res") (freshVars 8) |> toBoolExpr')
+        yield ()
+        printfn "%d - %d" result <| verify numOfVars f (fun i -> let g = (opExpr' (Var "res") (freshVars 8) |> toBoolExpr' |> removeVars |> eval') in g (toBits' numOfVars i))
+        yield ()
+        yield! exec f opStruct' 
     }
 
-let enum = (exec <| getOpStruct ()).GetEnumerator()
+let enum = (exec isPowerOfTwo <| getOpStruct ()).GetEnumerator()
 
 enum.MoveNext()
 

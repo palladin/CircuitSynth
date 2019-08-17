@@ -326,7 +326,7 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
               (bool [] -> bool) [] ->
               (string [] -> string) [] -> 
               (int -> bool) -> 
-              int -> int -> int -> int -> int -> int [] -> int -> int [] -> ((int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr)) = 
+              int -> int -> int -> int -> int -> int [] -> int -> int [] -> (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr)) = 
     fun numOfVars opExprs ops opStrs verify n numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps result baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let stats = Array.init final (fun i ->  0)
@@ -386,5 +386,5 @@ let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
         let ops = evalInstrs' ops instrs'
         let opStr = toOpStr numOfVars
         let arityOfOp = numOfVars
-        ((fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr)
+        (result, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr)
 
