@@ -143,9 +143,10 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         printfn "%A" expr'
         yield ()
         let result' = verify numOfVars f (fun i -> let g = expr' |> eval' in g (toBits' numOfVars i))
+        printfn "%d - %d" result result'
+        yield ()
         if result <> result' then
             failwith "oups"
-        yield ()
         yield! exec f opStruct' 
     }
 
