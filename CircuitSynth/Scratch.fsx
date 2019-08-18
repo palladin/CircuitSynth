@@ -15,11 +15,6 @@ open BoolExpr
 
 
 
-type Ops = { OpExprs : (BoolExpr -> BoolExpr [] -> BoolExpr) [];
-             Ops : (bool [] -> bool) [];
-             OpStrs : (string [] -> string) [];
-             ArityOps : int [] }
-
 let arityOfOps = [|2;
                    2;
                    1;
@@ -81,7 +76,7 @@ let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> S
 
 let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct -> 
     [| for i = 1 to 10 do 
-        let (result, f, op, opStr, opExpr) = run numOfVars opStruct.OpExprs opStruct.Ops opStruct.OpStrs f 3 opStruct.OpExprs.Length 1 numOfSamples opStruct.ArityOps (baseSample ())
+        let (result, f, op, opStr, opExpr) = run numOfVars opStruct f 3 1 numOfSamples (baseSample ())
         let vars = freshVars 8
         let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
         yield expr |]
@@ -135,9 +130,9 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         let matches' = matches exprs'
         printfn "%A" matches'
         yield ()
-        let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
+        let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.take 3 |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
         setTimeout(120.0)
-        let (result, _, _, _, opExpr') = run numOfVars opStruct'.OpExprs opStruct'.Ops opStruct'.OpStrs f 3 opStruct'.OpExprs.Length 1 numOfSamples opStruct'.ArityOps (baseSample ())
+        let (result, _, _, _, opExpr') = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
         let expr = opExpr' (Var "res") (freshVars 8)
         let expr' = expr |> toBoolExpr' |> removeVars
         printfn "%A" expr'
@@ -150,9 +145,11 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         yield! exec f opStruct' 
     }
 
-let enum = (exec isPowerOfTwo <| getOpStruct ()).GetEnumerator()
+let enum = (exec xors <| getOpStruct ()).GetEnumerator()
 
 enum.MoveNext()
 
+
+run numOfVars (getOpStruct ()) xors 10  1 numOfSamples (baseSample ())
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors

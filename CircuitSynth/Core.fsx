@@ -23,6 +23,11 @@ type Instr' = { Pos : int; Op : int;
                 Args : Arg' [] }
 type Instrs' =  Instr' []
 
+type Ops = { OpExprs : (BoolExpr -> BoolExpr [] -> BoolExpr) [];
+             Ops : (bool [] -> bool) [];
+             OpStrs : (string [] -> string) [];
+             ArityOps : int [] }
+
 let toBits : int -> int -> BoolExpr [] =
     fun bitSize i ->
         [| for c in Convert.ToString(i, 2).PadLeft(bitSize, '0') -> if c = '1' then True else False |]
@@ -322,15 +327,16 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             (status, result, instrs')
 
 
-let rec run : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
-              (bool [] -> bool) [] ->
-              (string [] -> string) [] -> 
-              (int -> bool) -> 
-              int -> int -> int -> int -> int [] -> int [] -> 
+let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] -> 
               (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr)) = 
-    fun numOfVars opExprs ops opStrs verify numOfTries numOfOps numOfInstrsIndex numOfSamples arityOfOps baseSample ->
+    fun numOfVars opStruct verify numOfTries numOfInstrsIndex numOfSamples baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let stats = Array.init final (fun i ->  0)
+        let opExprs = opStruct.OpExprs
+        let opStrs = opStruct.OpStrs
+        let ops = opStruct.Ops
+        let arityOfOps = opStruct.ArityOps
+        let numOfOps = opStruct.OpExprs.Length
 
         let rec run' : int -> int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
             fun numOfSamples numOfInstrsIndex old ->
