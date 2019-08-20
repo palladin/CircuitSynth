@@ -70,7 +70,7 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
-                    | Func' (v, args, iops, _) ->
+                    | Func' (v, args, iops) ->
                         seq { yield expr; yield! args |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
         rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
 
