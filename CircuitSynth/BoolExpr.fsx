@@ -16,25 +16,29 @@ type BoolExpr' =
     | Or' of string * string * string
     | Not' of string * string
     | Var' of string * string 
+    | Func' of string * string [] * int * BoolExpr' []
 
-let rec toBoolExprs : BoolExpr -> BoolExpr [] = fun expr -> 
-    if not expr.IsAnd then [|expr|]
-    else
-        let notand = 
-            expr.Args 
-            |> Array.filter (fun expr -> not expr.IsAnd)
-            |> Array.map (fun expr -> expr :?> BoolExpr)
 
-        let and' = 
-            expr.Args 
-            |> Array.filter (fun expr -> expr.IsAnd) 
-            |> Array.collect (fun expr -> expr.Args) 
-            |> Array.map (fun expr -> expr :?> BoolExpr)
-            |> Array.collect toBoolExprs
-
-        Array.append notand and'
 
 let toBoolExpr' : BoolExpr -> BoolExpr' []  = fun expr ->
+
+    let rec toBoolExprs : BoolExpr -> BoolExpr [] = fun expr -> 
+        if not expr.IsAnd then [|expr|]
+        else
+            let notand = 
+                expr.Args 
+                |> Array.filter (fun expr -> not expr.IsAnd)
+                |> Array.map (fun expr -> expr :?> BoolExpr)
+
+            let and' = 
+                expr.Args 
+                |> Array.filter (fun expr -> expr.IsAnd) 
+                |> Array.collect (fun expr -> expr.Args) 
+                |> Array.map (fun expr -> expr :?> BoolExpr)
+                |> Array.collect toBoolExprs
+
+            Array.append notand and'
+            
     let f : BoolExpr -> BoolExpr' = fun expr ->
         match expr with
         | Eq (Var v, And (Var x, Var y)) -> And' (v, x, y)
@@ -49,6 +53,7 @@ let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
     match expr with 
     | And' (v, x, y) | Or' (v, x, y) -> v 
     | Not' (v, x) | Var' (v, x) -> v
+    | Func' (v, _,  _, _) -> v
 
 let toBoolExpr : BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr = fun exprs res vars ->
     let dict = new Dictionary<string, BoolExpr>()
@@ -63,7 +68,7 @@ let toBoolExpr : BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr = fun exprs
         exprs |> Array.map (function | And' (v, x, y) -> Eq [|f v|] [|And [|f x; f y|]|]
                                      | Or' (v, x, y) -> Eq [|f v|] [|Or [|f x; f y|]|]
                                      | Not' (v, x) -> Eq [|f v|] [|Not (f x)|]
-                                     | Var' (v, x) -> failwith "oups") 
+                                     | _ -> failwith "oups") 
 
     And <| Array.append [|Eq [|res|] [|f <| getVarBoolExpr' exprs.[0]|]|] exprs'
     
@@ -72,7 +77,8 @@ let toMapBoolExpr : BoolExpr' [] -> Map<string, BoolExpr'> = fun exprs ->
                                      | And' (v, x, y) -> (v, expr)
                                      | Or' (v, x, y) -> (v, expr)
                                      | Not' (v, x) -> (v, expr)
-                                     | Var' (v, x) -> (v, expr))
+                                     | Var' (v, x) -> (v, expr)
+                                     | Func' (v, _, _, _) -> (v, expr))
           |> Map.ofArray
 
 let toDictBoolExpr : BoolExpr' [] -> Dictionary<string, BoolExpr'> = fun exprs ->
@@ -82,7 +88,8 @@ let toDictBoolExpr : BoolExpr' [] -> Dictionary<string, BoolExpr'> = fun exprs -
                                          | And' (v, x, y) -> (v, expr)
                                          | Or' (v, x, y) -> (v, expr)
                                          | Not' (v, x) -> (v, expr)
-                                         | Var' (v, x) -> (v, expr))
+                                         | Var' (v, x) -> (v, expr)
+                                         | Func' (v, _, _, _) -> (v, expr))
     for (v, expr) in vars do
         dict.Add(v, expr)
     dict
@@ -93,7 +100,8 @@ let countOps' : BoolExpr' [] -> int = fun exprs ->
     exprs |> Array.map (function | And' (v, x, y) -> 1
                                  | Or' (v, x, y) -> 1
                                  | Not' (v, x) -> 1
-                                 | Var' (v, x) -> 0)
+                                 | Var' (v, x) -> 0
+                                 | Func' _ -> 1)
           |> Array.sum
 
 let countVars : BoolExpr' [] -> int = fun exprs ->
@@ -146,6 +154,7 @@ let removeVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
         | Or' (v, x, y) -> dict.[v] <- Or' (v, f x, f y)
         | Not' (v, x) -> dict.[v] <- Not' (v, f x)
         | Var' (v, _) -> dict.Remove(v) |> ignore
+        | Func' (v, args, iop, exprs') -> dict.[v] <- Func' (v, args |> Array.map f, iop, exprs')
     [| for keyValue in dict do yield keyValue.Value  |]
 
 let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
@@ -170,4 +179,5 @@ let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
         | Or' (v, x, y) -> exprs.[i] <- Or' (f v, f x, f y)
         | Not' (v, x) -> exprs.[i] <- Not' (f v, f x)
         | Var' (_, _) -> failwith "oups"
+        | Func' (v, args, iop, exprs') -> exprs.[i] <- Func' (f v, args |> Array.map f, iop, exprs')
     exprs

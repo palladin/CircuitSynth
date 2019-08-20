@@ -70,6 +70,8 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
+                    | Func' (v, args, iops, _) ->
+                        seq { yield expr; yield! args |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
         rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
 
 let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
@@ -112,10 +114,10 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
     ([|0..exprs.Length - 1|], exprs)
     ||> Array.zip
     |> Array.fold (fun ops (i, expr) -> 
-                                   { OpExprs = Array.append [|toBoolExpr expr|] ops.OpExprs;
-                                     Ops = Array.append [|eval' expr|] ops.Ops;
-                                     OpStrs = Array.append [|toOpStr i|] ops.OpStrs;
-                                     ArityOps = Array.append [|countVars expr|] ops.ArityOps } ) ops
+                                   { OpExprs = Array.append ops.OpExprs [|toBoolExpr expr|] ;
+                                     Ops = Array.append ops.Ops [|eval' expr|] ;
+                                     OpStrs = Array.append ops.OpStrs [|toOpStr i|] ;
+                                     ArityOps = Array.append ops.ArityOps [|countVars expr|]  } ) ops
 
 
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
@@ -149,7 +151,7 @@ let enum = (exec xors <| getOpStruct ()).GetEnumerator()
 
 enum.MoveNext()
 
-
-run numOfVars (getOpStruct ()) xors 10  1 numOfSamples (baseSample ())
+setTimeout(120.0)
+run numOfVars (getOpStruct ()) isPrime 10 1 numOfSamples (baseSample ())
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
