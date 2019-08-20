@@ -78,9 +78,8 @@ let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> S
 
 let population : (int -> bool) -> Ops -> BoolExpr' [] [] = fun f opStruct -> 
     [| for i = 1 to 10 do 
-        let (result, f, op, opStr, opExpr) = run numOfVars opStruct f 3 1 numOfSamples (baseSample ())
-        let vars = freshVars 8
-        let expr = opExpr (Var "res") vars |> toBoolExpr' |> removeVars |> updateVars
+        let (result, f, op, opStr, opExpr, instrs') = run numOfVars opStruct f 3 1 numOfSamples (baseSample ())
+        let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
         yield expr |]
 
 
@@ -134,7 +133,7 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         yield ()
         let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.take 3 |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
         setTimeout(120.0)
-        let (result, _, _, _, opExpr') = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
+        let (result, _, _, _, opExpr', _) = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
         let expr = opExpr' (Var "res") (freshVars 8)
         let expr' = expr |> toBoolExpr' |> removeVars
         printfn "%A" expr'
@@ -152,6 +151,9 @@ let enum = (exec xors <| getOpStruct ()).GetEnumerator()
 enum.MoveNext()
 
 setTimeout(120.0)
-run numOfVars (getOpStruct ()) isPrime 10 1 numOfSamples (baseSample ())
+let (_, _, _, _, _, instrs') = run numOfVars (getOpStruct ()) (equalTo 12) 10 1 numOfSamples (baseSample ())
+
+let expr' = compileInstrsToBoolExprs (getOpStruct ()).ArityOps instrs' 
+verify numOfVars (equalTo 12) (fun i -> let g = expr' |> eval' in g (toBits' numOfVars i))
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors

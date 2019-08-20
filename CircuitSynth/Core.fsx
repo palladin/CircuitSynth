@@ -328,7 +328,7 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
 
 
 let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] -> 
-              (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr)) = 
+              (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs') = 
     fun numOfVars opStruct verify numOfTries numOfInstrsIndex numOfSamples baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let stats = Array.init final (fun i ->  0)
@@ -393,5 +393,5 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
         let ops = evalInstrs' ops instrs'
         let opStr = toOpStr numOfVars
         let arityOfOp = numOfVars
-        (result, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr)
+        (result, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs')
 

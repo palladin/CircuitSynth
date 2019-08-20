@@ -181,3 +181,17 @@ let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
         | Var' (_, _) -> failwith "oups"
         | Func' (v, args, iop) -> exprs.[i] <- Func' (f v, args |> Array.map f, iop)
     exprs
+
+
+
+let compileInstrsToBoolExprs : int [] -> Instrs' -> BoolExpr' [] = fun args instrs ->
+    let f : Arg' -> string = fun arg -> 
+        if arg.IsVar then "x" + arg.VarPos.ToString() 
+        else "temp-" + arg.InstrPos.ToString()
+    [| for instr in instrs do 
+            yield
+                match instr.Op with
+                | 0 -> Or' (sprintf "temp-%d" instr.Pos, f instr.Args.[0], f instr.Args.[1])
+                | 1 -> And' (sprintf "temp-%d" instr.Pos, f instr.Args.[0], f instr.Args.[1])
+                | 2 -> Not' (sprintf "temp-%d" instr.Pos, f instr.Args.[0])
+                | _ -> Func' (sprintf "temp-%d" instr.Pos, instr.Args |> Array.take args.[instr.Op] |> Array.map f, instr.Op) |] 
