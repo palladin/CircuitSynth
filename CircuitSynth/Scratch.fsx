@@ -90,7 +90,7 @@ let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs ->
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.toArray
 
-let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs -> 
+let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opStruct exprs -> 
     let dict = new Dictionary<int, int>()
     [| for i = 0 to exprs.Length - 1 do
         if dict.ContainsKey(i) then
@@ -99,7 +99,7 @@ let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs ->
             dict.Add(i, i)
             let c = 
                 [| for j = i + 1 to exprs.Length - 1 do
-                    let v = equiv' (freshVars numOfVars) (exprs.[i] |> toBoolExpr) (exprs.[j] |> toBoolExpr) 
+                    let v = equiv' (freshVars numOfVars) (toBoolExpr opStruct.OpExprs exprs.[i]) (toBoolExpr opStruct.OpExprs exprs.[j]) 
                     if v && (not <| dict.ContainsKey(j)) then
                         dict.Add(j, j)
                     yield v |] 
@@ -112,11 +112,11 @@ let matches : BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun exprs ->
 let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops -> 
     ([|0..exprs.Length - 1|], exprs)
     ||> Array.zip
-    |> Array.fold (fun ops (i, expr) -> 
-                                   { OpExprs = Array.append ops.OpExprs [|toBoolExpr expr|] ;
-                                     Ops = Array.append ops.Ops [|eval' expr|] ;
-                                     OpStrs = Array.append ops.OpStrs [|toOpStr i|] ;
-                                     ArityOps = Array.append ops.ArityOps [|countVars expr|]  } ) ops
+    |> Array.fold (fun ops' (i, expr) -> 
+                                   { OpExprs = Array.append ops'.OpExprs [|toBoolExpr ops.OpExprs expr|] ;
+                                     Ops = Array.append ops'.Ops [|eval' ops.Ops expr|] ;
+                                     OpStrs = Array.append ops'.OpStrs [|toOpStr i|] ;
+                                     ArityOps = Array.append ops'.ArityOps [|countVars expr|]  } ) (getOpStruct ())
 
 
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
@@ -128,17 +128,17 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         let exprs' = randomSubExprs exprs
         printfn "%A" exprs'
         yield ()
-        let matches' = matches exprs'
+        let matches' = matches opStruct exprs'
         printfn "%A" matches'
         yield ()
-        let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.take 3 |> Array.map (fun (_, _, expr) -> expr)) (getOpStruct ())
+        let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.take 3 |> Array.map (fun (_, _, expr) -> expr)) opStruct
         setTimeout(120.0)
         let (result, _, _, _, opExpr', _) = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
         let expr = opExpr' (Var "res") (freshVars 8)
         let expr' = expr |> toBoolExpr' |> removeVars
         printfn "%A" expr'
         yield ()
-        let result' = verify numOfVars f (fun i -> let g = expr' |> eval' in g (toBits' numOfVars i))
+        let result' = verify numOfVars f (fun i -> let g = eval' opStruct'.Ops expr' in g (toBits' numOfVars i))
         printfn "%d - %d" result result'
         yield ()
         if result <> result' then
@@ -154,6 +154,6 @@ setTimeout(120.0)
 let (_, _, _, _, _, instrs') = run numOfVars (getOpStruct ()) (equalTo 12) 10 1 numOfSamples (baseSample ())
 
 let expr' = compileInstrsToBoolExprs (getOpStruct ()).ArityOps instrs' 
-verify numOfVars (equalTo 12) (fun i -> let g = expr' |> eval' in g (toBits' numOfVars i))
+verify numOfVars (equalTo 12) (fun i -> let g = eval' (getOpStruct ()).Ops expr'  in g (toBits' numOfVars i))
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
