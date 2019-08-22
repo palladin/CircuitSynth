@@ -48,7 +48,7 @@ let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
-let numOfVars = 3
+let numOfVars = 4
 let final = int (2.0 ** (float numOfVars))
 
 let xors = (fun i -> xors <| toBits' numOfVars i)
@@ -116,13 +116,13 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
     |> Array.fold (fun ops' (i, expr) -> 
                                    { OpExprs = Array.append ops'.OpExprs [|toBoolExpr ops.OpExprs expr|] ;
                                      Ops = Array.append ops'.Ops [|eval' ops.Ops expr|] ;
-                                     OpStrs = Array.append ops'.OpStrs [|toOpStr i|] ;
+                                     OpStrs = Array.append ops'.OpStrs [|toOpStr ops'.OpStrs.Length|] ;
                                      ArityOps = Array.append ops'.ArityOps [|countVars expr|]  } ) ops
 
 
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
     seq {
-        setTimeout(20.0)
+        setTimeout(5.0)
         let exprs = population f opStruct
         printfn "%A" exprs
         yield ()
@@ -133,8 +133,11 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         printfn "%A" matches'
         yield ()
         let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.take 1 |> Array.map (fun (_, _, expr) -> expr)) opStruct
-        setTimeout(120.0)
+        setTimeout(5.0)
         let (result, _, _, _, opExpr', instrs') = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
+        let expr = opExpr' (Var "res") (freshVars 8)
+        printfn "%A" expr
+        printfn "Simplify: %A" <| simplify expr
         let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
         printfn "%A" expr'
         yield ()
@@ -143,12 +146,14 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         yield ()
         if result <> result' then
             failwith "oups"
-        yield! exec f opStruct' 
+        if result' <> final then
+            yield! exec f opStruct' 
     }
 
 let enum = (exec xors <| getOpStruct ()).GetEnumerator()
 
-enum.MoveNext()
+while enum.MoveNext() do
+    ()
 
 setTimeout(120.0)
 let (_, _, _, _, _, instrs') = run numOfVars (getOpStruct ()) (equalTo 12) 10 1 numOfSamples (baseSample ())
