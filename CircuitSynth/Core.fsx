@@ -331,7 +331,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
               (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs') = 
     fun numOfVars opStruct verify numOfTries numOfInstrsIndex numOfSamples baseSample ->
         let final = int (2.0 ** (float numOfVars))
-        let sample = [|0..final - 1|]
+        let values = [|0..final - 1|]
         let stats = Array.init final (fun i ->  0)
         let opExprs = opStruct.OpExprs
         let opStrs = opStruct.OpStrs
@@ -343,7 +343,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
             fun numOfSamples numOfInstrsIndex old ->
                 //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
-                let sample = sample |> Array.take numOfSamples |> randomize
+                let sample = values |> Array.take numOfSamples |> randomize
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample
                 if old.Length <> 0 then

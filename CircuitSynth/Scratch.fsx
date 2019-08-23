@@ -107,6 +107,7 @@ let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opSt
                 |> Seq.filter id
                 |> Seq.length  
             yield (c, countOps' exprs.[i], exprs.[i]) |] 
+    |> Array.filter (fun (c, cp,  _) -> c > 0) 
     |> Array.sortBy (fun (c, cp, _) -> (cp, c))
     |> Array.rev
 
@@ -123,7 +124,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
     seq {
-        setTimeout(5.0)
+        setTimeout(20.0)
         let exprs = population f opStruct
         printfn "%A" exprs
         yield ()
@@ -133,8 +134,8 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         let matches' = matches opStruct exprs'
         printfn "%A" matches'
         yield ()
-        let opStruct' = updateOps (matches' |> Array.filter (fun (c, cp,  _) -> c > 0) |> take' 1 |> Seq.toArray |> Array.map (fun (_, _, expr) -> expr)) opStruct
-        setTimeout(5.0)
+        let opStruct' = updateOps (matches' |> take' 1 |> Seq.toArray |> Array.map (fun (_, _, expr) -> expr)) opStruct
+        setTimeout(120.0)
         let (result, _, _, _, opExpr', instrs') = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
         let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
         printfn "%A" expr'
@@ -148,16 +149,14 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
             yield! exec f opStruct' 
     }
 
-let enum = (exec xors <| getOpStruct ()).GetEnumerator()
+let enum = (exec isPrime <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()
 
-let i = ref 1
+
 while enum.MoveNext() do
-    i := !i + 1
     ()
-!i
 
     
 
