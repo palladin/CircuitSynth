@@ -278,7 +278,7 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
     fun numOfVars opExprs ops opStrs availableOpExprs verify sample test arityOfOps numOfInstrs ->
         let varBitSize = 3
         let instrBitSize = 8
-        let opBitSize = 4
+        let opBitSize = 5
         let numOfOps = availableOpExprs.Length
 
         //let t = ctx.MkTactic("qffd")
@@ -331,6 +331,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
               (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs') = 
     fun numOfVars opStruct verify numOfTries numOfInstrsIndex numOfSamples baseSample ->
         let final = int (2.0 ** (float numOfVars))
+        let sample = [|0..final - 1|]
         let stats = Array.init final (fun i ->  0)
         let opExprs = opStruct.OpExprs
         let opStrs = opStruct.OpStrs
@@ -340,9 +341,9 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
 
         let rec run' : int -> int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
             fun numOfSamples numOfInstrsIndex old ->
-                //let baseSample = randoms (int DateTime.Now.Ticks) 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
-                let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
-                let sample = getSample verify sample numOfSamples
+                //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
+                //let sample = getSample verify sample numOfSamples
+                let sample = sample |> Array.take numOfSamples |> randomize
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample
                 if old.Length <> 0 then

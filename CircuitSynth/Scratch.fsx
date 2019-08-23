@@ -48,7 +48,7 @@ let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
-let numOfVars = 4
+let numOfVars = 5
 let final = int (2.0 ** (float numOfVars))
 
 let xors = (fun i -> xors <| toBits' numOfVars i)
@@ -95,7 +95,7 @@ let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opSt
     let dict = new Dictionary<int, int>()
     [| for i = 0 to exprs.Length - 1 do
         if dict.ContainsKey(i) then
-            yield i, -1, [||]
+            yield (-1, -1, [||])
         else
             dict.Add(i, i)
             let c = 
@@ -106,8 +106,9 @@ let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opSt
                     yield v |] 
                 |> Seq.filter id
                 |> Seq.length  
-            yield i, c, exprs.[i]|] 
-    |> Array.sortBy (fun (_, c, _) -> -c)
+            yield (c, countOps' exprs.[i], exprs.[i]) |] 
+    |> Array.sortBy (fun (c, cp, _) -> (cp, c))
+    |> Array.rev
 
 
 let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops -> 
@@ -132,12 +133,9 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         let matches' = matches opStruct exprs'
         printfn "%A" matches'
         yield ()
-        let opStruct' = updateOps (matches' |> Array.filter (fun (_, c, _) -> c > 0) |> Array.take 1 |> Array.map (fun (_, _, expr) -> expr)) opStruct
+        let opStruct' = updateOps (matches' |> Array.filter (fun (c, cp,  _) -> c > 0) |> take' 1 |> Seq.toArray |> Array.map (fun (_, _, expr) -> expr)) opStruct
         setTimeout(5.0)
         let (result, _, _, _, opExpr', instrs') = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
-        let expr = opExpr' (Var "res") (freshVars 8)
-        printfn "%A" expr
-        printfn "Simplify: %A" <| simplify expr
         let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
         printfn "%A" expr'
         yield ()
@@ -152,8 +150,16 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
 
 let enum = (exec xors <| getOpStruct ()).GetEnumerator()
 
+
+enum.MoveNext()
+
+let i = ref 1
 while enum.MoveNext() do
+    i := !i + 1
     ()
+!i
+
+    
 
 setTimeout(120.0)
 let (_, _, _, _, _, instrs') = run numOfVars (getOpStruct ()) (equalTo 12) 10 1 numOfSamples (baseSample ())
@@ -162,3 +168,6 @@ let expr' = compileInstrsToBoolExprs (getOpStruct ()).ArityOps instrs'
 verify numOfVars (equalTo 12) (fun i -> let g = eval' (getOpStruct ()).Ops expr'  in g (toBits' numOfVars i))
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
+
+
+

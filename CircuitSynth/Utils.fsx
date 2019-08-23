@@ -54,6 +54,9 @@ let randoms : int -> int -> seq<int> = fun min max ->
     seq { while true do
             yield rand.Next(min, max + 1) }
 
+let randomize : int [] -> int [] = fun xs -> 
+    randoms 0 (xs.Length - 1) |> Seq.distinct |> Seq.take xs.Length |> Seq.map (fun i -> xs.[i]) |> Seq.toArray
+
 let getSample : (int -> bool) -> int [] -> int -> int [] = 
     fun verify baseSample numOfSamples ->
         let sample =
