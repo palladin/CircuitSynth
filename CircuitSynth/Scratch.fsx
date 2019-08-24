@@ -60,7 +60,7 @@ let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
-let numOfVars = 5
+let numOfVars = 6
 let final = int (2.0 ** (float numOfVars))
 
 let xors = (fun i -> xors <| toBits' numOfVars i)
@@ -83,7 +83,7 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
                     | Func' (v, args, iops) ->
-                        seq { yield expr; yield! args |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
+                        seq { yield expr; yield! args |> randomize |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
         rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
 
 let baseSample () = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
@@ -137,7 +137,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
     seq {
-        setTimeout(20.0)
+        setTimeout(5.0)
         let exprs = population f opStruct
         printfn "%A" exprs
         yield ()
@@ -148,8 +148,8 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         printfn "%A" matches'
         yield ()
         let opStruct' = updateOps (matches' |> take' 1 |> Seq.toArray |> Array.map (fun (_, _, expr) -> expr)) opStruct
-        setTimeout(120.0)
-        let (result, _, _, _, opExpr', instrs') = run numOfVars opStruct' f 3  1 numOfSamples (baseSample ())
+        setTimeout(20.0)
+        let (result, _, _, _, opExpr', instrs') = run numOfVars opStruct' f 10  1 numOfSamples (baseSample ())
         let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
         printfn "%A" expr'
         yield ()
