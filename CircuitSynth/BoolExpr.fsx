@@ -1,5 +1,6 @@
 ﻿#load "Init.fsx"
 #load "Utils.fsx"
+#load "CoreTypes.fsx"
 #load "Core.fsx"
 
 open System
@@ -8,15 +9,9 @@ open System.IO
 open Microsoft.Z3
 open Utils
 open Init
+open CoreTypes
 open Core
 
-
-type BoolExpr' = 
-    | And' of string * string * string
-    | Or' of string * string * string
-    | Not' of string * string
-    | Var' of string * string 
-    | Func' of string * string [] * int 
 
 
 

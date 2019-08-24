@@ -12,6 +12,7 @@
     <Compile Include="Program.fs" />
     <None Include="Scratch.fsx" />
     <None Include="BoolExpr.fsx" />
+    <None Include="CoreTypes.fsx" />
   </ItemGroup>
 
   <ItemGroup />

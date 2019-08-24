@@ -1,6 +1,7 @@
 ﻿#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
 #load "Init.fsx"
 #load "Utils.fsx"
+#load "CoreTypes.fsx"
 #load "Core.fsx"
 #load "BoolExpr.fsx"
 
@@ -10,6 +11,7 @@ open System.Collections.Generic
 open Microsoft.Z3
 open Utils
 open Init
+open CoreTypes
 open Core
 open BoolExpr
 
@@ -34,6 +36,12 @@ let opExprs : (BoolExpr -> BoolExpr [] -> BoolExpr) [] =
       //(fun var args -> Eq [|var|] [|Xor args.[0] args.[1]|]);
     |]
 
+let opExprs' : BoolExpr' [] [] = 
+    [|[|Or' (string (FreshVar ()), "x0", "x1")|];
+      [|And' (string (FreshVar ()), "x0", "x1")|];
+      [|Not' (string (FreshVar ()), "x0")|];
+    |]
+
 let opStrs : (string [] -> string) [] = 
     [|(fun args -> sprintf "%s or %s" args.[0] args.[1]);
       (fun args -> sprintf "%s and %s" args.[0] args.[1]);
@@ -41,7 +49,11 @@ let opStrs : (string [] -> string) [] =
       //(fun args -> sprintf "%s xor %s" args.[0] args.[1])
     |]
 
-let getOpStruct : unit -> Ops = fun () -> { OpExprs = opExprs; Ops = ops; OpStrs = opStrs; ArityOps = arityOfOps  }
+let getOpStruct : unit -> Ops = fun () -> { OpExprs = opExprs; 
+                                            Ops = ops;
+                                            OpStrs = opStrs; 
+                                            OpExprs' = opExprs';
+                                            ArityOps = arityOfOps  }
 
 
 let numOfTries = 1
@@ -119,6 +131,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
                                    { OpExprs = Array.append ops'.OpExprs [|toBoolExpr ops.OpExprs expr|] ;
                                      Ops = Array.append ops'.Ops [|eval' ops.Ops expr|] ;
                                      OpStrs = Array.append ops'.OpStrs [|toOpStr ops'.OpStrs.Length|] ;
+                                     OpExprs' = Array.append ops'.OpExprs' [|expr|] ;
                                      ArityOps = Array.append ops'.ArityOps [|countVars expr|]  } ) ops
 
 
@@ -149,7 +162,7 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
             yield! exec f opStruct' 
     }
 
-let enum = (exec isPrime <| getOpStruct ()).GetEnumerator()
+let enum = (exec isPowerOfTwo <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()

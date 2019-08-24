@@ -1,6 +1,7 @@
 ﻿
 #load "Init.fsx"
 #load "Utils.fsx"
+#load "CoreTypes.fsx"
 
 open System
 open System.Diagnostics
@@ -9,24 +10,9 @@ open System.IO
 open Microsoft.Z3
 open Utils
 open Init
+open CoreTypes
 
 
-type VarEntry = { Pos : BoolExpr []; Value : BoolExpr }
-type Vars = VarEntry [] 
-type Arg = { IsVar : BoolExpr; VarPos : BoolExpr []; InstrPos : BoolExpr [] } 
-type Instr = { Pos : BoolExpr []; Value : BoolExpr; Op : BoolExpr [];
-               Args : Arg [] }
-type Instrs =  Instr []
-
-type Arg' = { IsVar : bool; VarPos : int; InstrPos : int }
-type Instr' = { Pos : int; Op : int;
-                Args : Arg' [] }
-type Instrs' =  Instr' []
-
-type Ops = { OpExprs : (BoolExpr -> BoolExpr [] -> BoolExpr) [];
-             Ops : (bool [] -> bool) [];
-             OpStrs : (string [] -> string) [];
-             ArityOps : int [] }
 
 let toBits : int -> int -> BoolExpr [] =
     fun bitSize i ->
@@ -343,7 +329,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
             fun numOfSamples numOfInstrsIndex old ->
                 //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
-                let sample = values |> Array.take numOfSamples |> randomize
+                let sample = values |> take' numOfSamples |> Seq.toArray |> randomize
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample
                 if old.Length <> 0 then
