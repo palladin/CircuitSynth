@@ -313,8 +313,9 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             (status, result, instrs')
 
 
-let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] -> 
-              (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs') = 
+let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int []) -> 
+              (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * 
+               (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs' * (int * int) []) = 
     fun numOfVars opStruct verify numOfTries numOfInstrsIndex numOfSamples baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let values = [|0..final - 1|]
@@ -329,7 +330,8 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
             fun numOfSamples numOfInstrsIndex old ->
                 //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
-                let sample = values |> take' numOfSamples |> Seq.toArray |> randomize
+                let sample = (baseSample ()) |> take' numOfSamples |> Seq.toArray |> randomize
+                printfn "Sample: %A" sample
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample
                 if old.Length <> 0 then
@@ -380,5 +382,6 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> int [] ->
         let ops = evalInstrs' ops instrs'
         let opStr = toOpStr numOfVars
         let arityOfOp = numOfVars
-        (result, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs')
+        let stats' = stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd
+        (result, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', stats')
 
