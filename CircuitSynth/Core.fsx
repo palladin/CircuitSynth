@@ -325,12 +325,13 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
         let ops = opStruct.Ops
         let arityOfOps = opStruct.ArityOps
         let numOfOps = opStruct.OpExprs.Length
+        let baseSample = baseSample ()
 
         let rec run' : int -> int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
             fun numOfSamples numOfInstrsIndex old ->
                 //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
-                let sample = (baseSample ()) |> take' numOfSamples |> Seq.toArray |> randomize
+                let sample = baseSample |> take' numOfSamples |> Seq.toArray |> randomize
                 printfn "Sample: %A" sample
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample

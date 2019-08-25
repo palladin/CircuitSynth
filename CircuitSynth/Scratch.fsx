@@ -90,11 +90,11 @@ let baseSample : (int -> bool) -> unit -> int [] = fun f () ->
     let sample = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
     getSample f sample final
 
-let population : (int -> bool) -> (unit -> int[]) -> Ops -> BoolExpr' [] [] = fun f samplef opStruct -> 
+let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' []) [] = fun f samplef opStruct -> 
     [| for i = 1 to 10 do 
-        let (result, f, op, opStr, opExpr, instrs', _) = run numOfVars opStruct f 3 1 numOfSamples samplef
+        let (result, f, op, opStr, opExpr, instrs', _) = run numOfVars opStruct f 10 1 numOfSamples samplef
         let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
-        yield expr |]
+        yield (result, expr) |]
 
 
 
@@ -122,6 +122,7 @@ let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opSt
                 |> Seq.length  
             yield (c, countOps' exprs.[i], exprs.[i]) |] 
     |> Array.filter (fun (c, cp,  _) -> c > 0) 
+    |> Array.filter (fun (c, cp,  _) -> cp > 2) 
     |> Array.sortBy (fun (c, cp, _) -> (cp, c))
     |> Array.rev
 
@@ -140,12 +141,14 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
     seq {
         setTimeout(5.0)
-        let (_, _, _, _, _, _, stats) = run numOfVars opStruct f 3 1 numOfSamples (baseSample f)
-        printfn "%A" stats
-        yield ()
-        let samplef = (fun () -> stats |> Array.map fst)
-        let exprs = population f samplef opStruct
-        printfn "%A" exprs
+        //let (_, _, _, _, _, _, stats) = run numOfVars opStruct f 3 1 numOfSamples (baseSample f)
+        //printfn "%A" stats
+        //yield ()
+        //let samplef = (fun () -> stats |> Array.map fst |> (fun s -> getSample f s final))
+        let samplef = (fun () -> getSample f [|0..final - 1|] final)
+        let results = population f samplef opStruct
+        printfn "%A" results
+        let exprs = results |> Array.map snd 
         yield ()
         let exprs' = randomSubExprs exprs
         printfn "%A" exprs'
@@ -153,9 +156,9 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         let matches' = matches opStruct exprs'
         printfn "%A" matches'
         yield ()
-        let opStruct' = updateOps (matches' |> take' 1 |> Seq.toArray |> Array.map (fun (_, _, expr) -> expr)) opStruct
-        setTimeout(20.0)
-        let (result, _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 3 1 numOfSamples samplef
+        let opStruct' = updateOps (matches' |> (*take' 3 |> Seq.toArray |>*) Array.map (fun (_, _, expr) -> expr)) opStruct
+        setTimeout(120.0)
+        let (result, _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 10 1 final samplef
         let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
         printfn "%A" expr'
         yield ()
@@ -168,7 +171,7 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
             yield! exec f opStruct' 
     }
 
-let enum = (exec isPowerOfTwo <| getOpStruct ()).GetEnumerator()
+let enum = (exec isPrime <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()
