@@ -96,7 +96,18 @@ let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' [])
         let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
         yield (result, expr) |]
 
-
+let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct -> 
+    seq {
+        let posRef = ref 0
+        let flag = ref false
+        while not !flag do
+            let (result, pos, _, _, _, _, instrs', _) = run numOfVars opStruct f 5 1 1 (fun () -> [|!posRef  .. final - 1|])
+            if result = final then
+                flag := true
+            posRef := !posRef + (pos - 1)
+            let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
+            yield (result, expr)
+    }
 
 let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs -> 
     [| for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr (rand.Next(2, expr.Length)) expr |> updateVars) [||]) |> take' 100 |] 
@@ -145,8 +156,11 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         //printfn "%A" stats
         //yield ()
         //let samplef = (fun () -> stats |> Array.map fst |> (fun s -> getSample f s final))
-        let samplef = (fun () -> getSample f ([|0..final - 1|] |> randomize) final)
-        let results = population f samplef opStruct
+        //let samplef = (fun () -> getSample f ([|0..final - 1|] |> randomize) final)
+        //let results = population f samplef opStruct
+        for (result, expr) in ranges f opStruct do
+            yield ()
+        let results =  [||]
         printfn "%A" results
         let exprs = results |> Array.map snd 
         yield ()
@@ -157,21 +171,21 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         printfn "%A" matches'
         yield ()
         let opStruct' = updateOps (matches' |> (*take' 3 |> Seq.toArray |>*) Array.map (fun (_, _, expr) -> expr)) opStruct
-        setTimeout(120.0)
-        let (result, _,  _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 5 1 numOfSamples samplef
-        let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
-        printfn "%A" expr'
-        yield ()
-        let result' = verify numOfVars f (fun i -> let g = eval' opStruct'.Ops expr' in g (toBits' numOfVars i))
-        printfn "%d - %d" result result'
-        yield ()
-        if result <> result' then
-            failwith "oups"
-        if result' <> final then
-            yield! exec f opStruct' 
+        //setTimeout(120.0)
+        //let (result, _,  _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 5 1 numOfSamples samplef
+        //let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
+        //printfn "%A" expr'
+        //yield ()
+        //let result' = verify numOfVars f (fun i -> let g = eval' opStruct'.Ops expr' in g (toBits' numOfVars i))
+        //printfn "%d - %d" result result'
+        //yield ()
+        //if result <> result' then
+        //    failwith "oups"
+        //if result' <> final then
+        yield! exec f opStruct' 
     }
 
-let enum = (exec (fun i -> i <= 128) <| getOpStruct ()).GetEnumerator()
+let enum = (exec xors <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()
