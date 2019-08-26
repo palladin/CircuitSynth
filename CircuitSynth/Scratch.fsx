@@ -60,7 +60,7 @@ let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
-let numOfVars = 5
+let numOfVars = 6
 let final = int (2.0 ** (float numOfVars))
 
 let xors = (fun i -> xors <| toBits' numOfVars i)
@@ -101,10 +101,10 @@ let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct ->
         let posRef = ref 0
         let flag = ref false
         while not !flag do
-            let (result, pos, _, _, _, _, instrs', _) = run numOfVars opStruct f 5 1 1 (fun () -> [|!posRef  .. final - 1|])
-            if result = final then
-                flag := true
+            let (result, pos, _, _, _, _, instrs', _) = run numOfVars opStruct f 3 1 1 (fun () -> [|!posRef  .. final - 1|])
             posRef := !posRef + (pos - 1)
+            if !posRef = final - 1 || result = final  then
+                flag := true
             let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
             yield (result, expr)
     }
@@ -151,16 +151,16 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
     seq {
-        setTimeout(5.0)
+        setTimeout(20.0)
         //let (_, _, _, _, _, _, stats) = run numOfVars opStruct f 3 1 numOfSamples (baseSample f)
         //printfn "%A" stats
         //yield ()
         //let samplef = (fun () -> stats |> Array.map fst |> (fun s -> getSample f s final))
         //let samplef = (fun () -> getSample f ([|0..final - 1|] |> randomize) final)
         //let results = population f samplef opStruct
-        for (result, expr) in ranges f opStruct do
-            yield ()
-        let results =  [||]
+        //for (result, expr) in ranges f opStruct  do
+        //    yield ()
+        let results = ranges f opStruct |> Seq.toArray
         printfn "%A" results
         let exprs = results |> Array.map snd 
         yield ()

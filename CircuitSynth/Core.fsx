@@ -365,6 +365,9 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                     |> Seq.filter (fun (_, status, _, _, _) -> status = Status.SATISFIABLE)
                     |> Seq.tryHead
                 match result with
+                | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when result = final -> 
+                    printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                    (Status.SATISFIABLE, result, instrs', elapsed, sample)
                 | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when !posRef = baseSample.Length -> 
                     printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                     (Status.SATISFIABLE, result, instrs', elapsed, sample)
