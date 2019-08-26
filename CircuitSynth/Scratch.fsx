@@ -60,7 +60,7 @@ let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
-let numOfVars = 6
+let numOfVars = 5
 let final = int (2.0 ** (float numOfVars))
 
 let xors = (fun i -> xors <| toBits' numOfVars i)
@@ -92,7 +92,7 @@ let baseSample : (int -> bool) -> unit -> int [] = fun f () ->
 
 let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' []) [] = fun f samplef opStruct -> 
     [| for i = 1 to 10 do 
-        let (result, f, op, opStr, opExpr, instrs', _) = run numOfVars opStruct f 10 1 numOfSamples samplef
+        let (result, pos, f, op, opStr, opExpr, instrs', _) = run numOfVars opStruct f 5 1 numOfSamples samplef
         let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
         yield (result, expr) |]
 
@@ -145,7 +145,7 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         //printfn "%A" stats
         //yield ()
         //let samplef = (fun () -> stats |> Array.map fst |> (fun s -> getSample f s final))
-        let samplef = (fun () -> getSample f [|0..final - 1|] final)
+        let samplef = (fun () -> getSample f ([|0..final - 1|] |> randomize) final)
         let results = population f samplef opStruct
         printfn "%A" results
         let exprs = results |> Array.map snd 
@@ -158,7 +158,7 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         yield ()
         let opStruct' = updateOps (matches' |> (*take' 3 |> Seq.toArray |>*) Array.map (fun (_, _, expr) -> expr)) opStruct
         setTimeout(120.0)
-        let (result, _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 10 1 final samplef
+        let (result, _,  _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 5 1 numOfSamples samplef
         let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
         printfn "%A" expr'
         yield ()
@@ -171,7 +171,7 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
             yield! exec f opStruct' 
     }
 
-let enum = (exec isPrime <| getOpStruct ()).GetEnumerator()
+let enum = (exec (fun i -> i <= 128) <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()
@@ -182,9 +182,9 @@ while enum.MoveNext() do
 
     
 
-setTimeout(5.0)
-let (_, _, _, _, _, _, stats) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (baseSample isPowerOfTwo)
-let (_, _, _, _, _, _, _) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (fun () -> stats |> Array.map fst)
+//setTimeout(5.0)
+//let (_, _, _, _, _, _, stats) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (baseSample isPowerOfTwo)
+//let (_, _, _, _, _, _, _) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (fun () -> stats |> Array.map fst)
 
 
 

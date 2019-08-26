@@ -314,9 +314,9 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
 
 
 let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int []) -> 
-              (int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * 
+              (int * int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * 
                (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs' * (int * int) []) = 
-    fun numOfVars opStruct verify numOfTries numOfInstrsIndex numOfSamples baseSample ->
+    fun numOfVars opStruct verify numOfTries numOfInstrsIndex pos baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let values = [|0..final - 1|]
         let stats = Array.init final (fun i ->  0)
@@ -326,12 +326,13 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
         let arityOfOps = opStruct.ArityOps
         let numOfOps = opStruct.OpExprs.Length
         let baseSample = baseSample ()
+        let posRef = ref pos
 
-        let rec run' : int -> int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
-            fun numOfSamples numOfInstrsIndex old ->
+        let rec run' : int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
+            fun numOfInstrsIndex old ->
                 //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
-                let sample = baseSample |> take' numOfSamples |> Seq.toArray |> randomize
+                let sample = baseSample |> take' !posRef |> Seq.toArray //|> randomize
                 printfn "Sample: %A" sample
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample
@@ -369,14 +370,15 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                     (Status.SATISFIABLE, result, instrs', elapsed, sample)
                 | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) ->
                     printfn "%s" <| strInstrs opStrs arityOfOps instrs'
-                    run' (numOfSamples + 1) numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
+                    incr posRef
+                    run' numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
                 | None ->
                     if old.Length = 0 then failwith "UNKNOWN"
                     let (status, result, instrs', elapsed) = old.[0]
                     printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                     (status, result, instrs', elapsed, sample)
                 | _ -> failwith "oups"
-        let (status, result, instrs', elapsed, sample) = run' numOfSamples numOfInstrsIndex [||]
+        let (status, result, instrs', elapsed, sample) = run' numOfInstrsIndex [||]
         printfn "%A %A" (status, result) elapsed
 
         let opExpr = compileInstrs' opExprs arityOfOps instrs' 
@@ -384,5 +386,5 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
         let opStr = toOpStr numOfVars
         let arityOfOp = numOfVars
         let stats' = stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd
-        (result, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', stats')
+        (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', stats')
 
