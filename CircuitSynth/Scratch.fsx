@@ -151,9 +151,9 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
                                      Active = Array.append ops'.Active [|true|] } ) ops
 
 
-let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
+let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct -> 
     seq {
-        setTimeout(5.0)
+        setTimeout(20.0 * float i)
         //let (_, _, _, _, _, _, stats) = run numOfVars opStruct f 3 1 numOfSamples (baseSample f)
         //printfn "%A" stats
         //yield ()
@@ -186,10 +186,10 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         //if result <> result' then
         //    failwith "oups"
         //if result' <> final then
-        yield! exec f opStruct' 
+        yield! exec (i + 1) f opStruct' 
     }
 
-let enum = (exec isPrime <| getOpStruct ()).GetEnumerator()
+let enum = (exec 1 isPrime <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()
@@ -200,8 +200,8 @@ while enum.MoveNext() do
 
     
 
-//setTimeout(5.0)
-//let (_, _, _, _, _, _, stats) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (baseSample isPowerOfTwo)
+setTimeout(120.0)
+let _ = run numOfVars (getOpStruct ()) isPrime 3 1 numOfSamples (fun () -> [|0 .. final - 1|])
 //let (_, _, _, _, _, _, _) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (fun () -> stats |> Array.map fst)
 
 

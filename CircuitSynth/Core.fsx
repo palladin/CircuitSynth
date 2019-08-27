@@ -342,6 +342,9 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                     for i in [|0..final - 1|] do
                         if f <| toBits' numOfVars i = verify i then
                             stats.[i] <- stats.[i] + 1
+                    let notFound = [|0..final - 1|] 
+                                   |> Array.filter (fun i -> f <| toBits' numOfVars i <> verify i)
+                    printfn "notFound: %A" notFound
                     //printfn "Stats %A " (stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd)
 
                 let result =
