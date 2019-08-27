@@ -97,16 +97,17 @@ let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' [])
         let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
         yield (result, expr) |]
 
-let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct -> 
+let ranges : (int -> bool) -> int -> Ops -> seq<int * BoolExpr' []> = fun f c opStruct -> 
     seq {
-        let posRef = ref 0
+        let count = ref 0
         let flag = ref false
         while not !flag do
-            let (result, pos, _, _, _, _, instrs', _) = run numOfVars opStruct f 3 1 1 (fun () -> [|!posRef  .. final - 1|])
-            posRef := !posRef + (pos - 1)
-            if !posRef = final - 1 || result = final  then
+            printfn "Count: %d" !count
+            let (result, pos, _, _, _, _, instrs', _) = run numOfVars opStruct f 3 1 1 (fun () -> [|!count  .. final - 1|])
+            if !count = c || result = final  then
                 flag := true
             let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
+            count := !count + 1
             yield (result, expr)
     }
 
@@ -162,7 +163,7 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         //let results = population f samplef opStruct
         //for (result, expr) in ranges f opStruct  do
         //    yield ()
-        let results = ranges f opStruct |> Seq.toArray
+        let results = ranges f 10 opStruct |> Seq.toArray
         printfn "%A" results
         let exprs = results |> Array.map snd 
         yield ()
@@ -189,7 +190,7 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         yield! exec (i + 1) f opStruct' 
     }
 
-let enum = (exec 1 isPrime <| getOpStruct ()).GetEnumerator()
+let enum = (exec 1 isPowerOfTwo <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()
