@@ -27,4 +27,5 @@ type Ops = { OpExprs : (BoolExpr -> BoolExpr [] -> BoolExpr) [];
              Ops : (bool [] -> bool) [];
              OpStrs : (string [] -> string) [];
              OpExprs' : BoolExpr' [] [];
-             ArityOps : int [] }
+             ArityOps : int [];
+             Active : bool [] }

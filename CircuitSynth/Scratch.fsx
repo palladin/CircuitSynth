@@ -53,7 +53,8 @@ let getOpStruct : unit -> Ops = fun () -> { OpExprs = opExprs;
                                             Ops = ops;
                                             OpStrs = opStrs; 
                                             OpExprs' = opExprs';
-                                            ArityOps = arityOfOps  }
+                                            ArityOps = arityOfOps;
+                                            Active = [|true; true; true|]  }
 
 
 let numOfTries = 1
@@ -133,7 +134,7 @@ let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opSt
                 |> Seq.length  
             yield (c, countOps' exprs.[i], exprs.[i]) |] 
     |> Array.filter (fun (c, cp,  _) -> c > 0) 
-    |> Array.filter (fun (c, cp,  _) -> cp > 2) 
+    |> Array.filter (fun (c, cp,  _) -> cp > 1) 
     |> Array.sortBy (fun (c, cp, _) -> (cp, c))
     |> Array.rev
 
@@ -146,12 +147,13 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
                                      Ops = Array.append ops'.Ops [|eval' ops.Ops expr|] ;
                                      OpStrs = Array.append ops'.OpStrs [|toOpStr ops'.OpStrs.Length|] ;
                                      OpExprs' = Array.append ops'.OpExprs' [|expr|] ;
-                                     ArityOps = Array.append ops'.ArityOps [|countVars expr|]  } ) ops
+                                     ArityOps = Array.append ops'.ArityOps [|countVars expr|] ;
+                                     Active = Array.append ops'.Active [|true|] } ) ops
 
 
 let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct -> 
     seq {
-        setTimeout(20.0)
+        setTimeout(5.0)
         //let (_, _, _, _, _, _, stats) = run numOfVars opStruct f 3 1 numOfSamples (baseSample f)
         //printfn "%A" stats
         //yield ()
@@ -170,6 +172,8 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         let matches' = matches opStruct exprs'
         printfn "%A" matches'
         yield ()
+        for i = 3 to opStruct.Ops.Length - 1 do
+            opStruct.Active.[i] <- false
         let opStruct' = updateOps (matches' |> (*take' 3 |> Seq.toArray |>*) Array.map (fun (_, _, expr) -> expr)) opStruct
         //setTimeout(120.0)
         //let (result, _,  _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 5 1 numOfSamples samplef
@@ -185,7 +189,7 @@ let rec exec : (int -> bool) -> Ops -> seq<unit> = fun f opStruct ->
         yield! exec f opStruct' 
     }
 
-let enum = (exec xors <| getOpStruct ()).GetEnumerator()
+let enum = (exec isPrime <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()

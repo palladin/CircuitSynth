@@ -93,7 +93,7 @@ let evalInstrs : int [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> Vars -> I
                            ||> Array.zip 
                            |> Array.map (fun (freshVar, arg) -> If arg.IsVar (lookupVarValue freshVar arg.VarPos vars)
                                                                              (lookupInstrValue freshVar arg.InstrPos instrs))
-                let resultVars = availableOpExprs |> Array.map (fun _ -> FreshVar ())
+                let resultVars = ops |> Array.map (fun _ -> FreshVar ())
                 let resultOps = availableOpExprs |> Array.map (fun i -> ops.[i] resultVars.[i] freshVars)
                 let value =
                     availableOpExprs 
@@ -348,11 +348,11 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                     seq {
                         for numOfInstrs in {numOfInstrsIndex..100} do
                             let availableOpExprs = 
-                                if opExprs.Length > numOfOps then 
-                                    Array.append [|0|] 
-                                                    ([|1..numOfOps|] |> Array.map (fun i -> opExprs.Length - i))
-                                else 
-                                    opExprs |> Array.mapi (fun i _ -> i)
+                                opStruct.Active 
+                                |> Array.mapi (fun i b -> (i, b))
+                                |> Array.filter (fun (_, b) -> b)
+                                |> Array.map (fun (i, _) -> i)
+                            
                             let watch = new Stopwatch()
                             watch.Start()
                             let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample [|0..final - 1|] arityOfOps numOfInstrs
