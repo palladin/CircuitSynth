@@ -367,7 +367,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
 
                                 let watch = new Stopwatch()
                                 watch.Start()
-                                let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify (sample |> randomize) [|0..final - 1|] arityOfOps numOfInstrs
+                                let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample  [|0..final - 1|] arityOfOps numOfInstrs
                                 watch.Stop()
                                 printfn "%d %d %A %A %A" sample.Length numOfInstrs availableOpExprs (status, result) watch.Elapsed
                                 yield (numOfInstrs, status, result, instrs', watch.Elapsed)

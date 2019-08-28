@@ -163,12 +163,12 @@ let collapse : BoolExpr' [] [] -> BoolExpr' [] -> BoolExpr' [] = fun ops exprs -
 
 let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct -> 
     seq {
-        setTimeout(5.0 * float i)
+        setTimeout(5.0 * float 1)
 
         //for (result, expr) in ranges f opStruct  do
         //    yield ()
 
-        let results = ranges f 3 opStruct |> Seq.toArray
+        let results = ranges f 10 opStruct |> Seq.toArray
         printfn "%A" results
         let exprs = results |> Array.map snd 
         yield ()
@@ -179,26 +179,37 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         printfn "%A" matches'
         yield ()
 
-        for i = 3 to opStruct.Ops.Length - 1 do
-            opStruct.Active.[i] <- false
+        //for i = 3 to opStruct.Ops.Length - 1 do
+            //opStruct.Active.[i] <- false
 
-        let opStruct' = updateOps (matches' |> (*take' 3 |> Seq.toArray |>*) Array.map (fun (_, _, expr) -> expr)) opStruct
+        let matchedExprs = matches' |> Array.map (fun (_, _, expr) -> expr)
+        //let opStruct' = updateOps matchedExprs opStruct
 
-        setTimeout(5.0)
-        let (result, _,  _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 5 1 numOfSamples (fun () -> [|0 .. final - 1|])
-        let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
-        printfn "%A" expr'
+        setTimeout(5.0 * float 1)
+        let ranks = 
+            [| for matchedExpr in matchedExprs do
+                let opStruct' = updateOps [|matchedExpr|] opStruct
+                let (result, _,  _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 3 1 1 (fun () -> [|0 .. final - 1|])
+                let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs' 
+                yield (result, matchedExpr) |] 
+            |> Array.sortBy (fun (result, _) -> -result)
+
+        printfn "%A" ranks
         yield ()
-        let result' = verify numOfVars f (fun i -> let g = eval' opStruct'.Ops expr' in g (toBits' numOfVars i))
-        printfn "%d - %d" result result'
-        yield ()
-        if result <> result' then
-            failwith "oups"
-        if result' <> final then
-            yield! exec (i + 1) f opStruct' 
+        let opStruct' = updateOps (ranks |> Array.map snd |> take' 1 |> Seq.toArray) opStruct
+        //let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs'
+        //printfn "%A" expr'
+        //yield ()
+        //let result' = verify numOfVars f (fun i -> let g = eval' opStruct'.Ops expr' in g (toBits' numOfVars i))
+        //printfn "%d - %d" result result'
+        //yield ()
+        //if result <> result' then
+         //   failwith "oups"
+        //if result' <> final then
+        yield! exec (i + 1) f opStruct' 
     }
 
-let enum = (exec 1 xors <| getOpStruct ()).GetEnumerator()
+let enum = (exec 1 isPowerOfTwo <| getOpStruct ()).GetEnumerator()
 
 
 enum.MoveNext()
@@ -210,7 +221,7 @@ while enum.MoveNext() do
     
 
 setTimeout(120.0)
-let _ = run numOfVars (getOpStruct ()) isPrime 3 1 numOfSamples (fun () -> [|0 .. final - 1|])
+let _ = run numOfVars (getOpStruct ()) isPrime 3 1 1 (fun () -> [|0 .. final - 1|])
 //let (_, _, _, _, _, _, _) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (fun () -> stats |> Array.map fst)
 
 
