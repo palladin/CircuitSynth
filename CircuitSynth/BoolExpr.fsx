@@ -195,3 +195,22 @@ let compileInstrsToBoolExprs : int [] -> Instrs' -> BoolExpr' [] = fun args inst
                 | 1 -> And' (sprintf "temp-%d" instr.Pos, f instr.Args.[0], f instr.Args.[1])
                 | 2 -> Not' (sprintf "temp-%d" instr.Pos, f instr.Args.[0])
                 | _ -> Func' (sprintf "temp-%d" instr.Pos, instr.Args |> Array.take args.[instr.Op] |> Array.map f, instr.Op) |] 
+
+
+let subs : string [] -> BoolExpr' [] -> BoolExpr' [] = fun args exprs -> 
+    let vars = [|0..args.Length - 1|] |> Array.map (fun i -> "x" + string i)
+    let map = (vars, args) ||> Array.zip |> Map.ofArray 
+    let f : string -> string = fun v ->  
+        match Map.tryFind v map with
+        | Some v' -> v'
+        | None -> v
+    exprs |> Array.map (function | And' (v, x, y) -> And' (v, f x, f y)
+                                 | Or' (v, x, y) -> Or' (v, f x, f y)
+                                 | Not' (v, x) -> Not' (v, f x)
+                                 | Func' (v, args, iop) -> Func' (v, args |> Array.map f, iop)
+                                 | _ -> failwith "oups")
+
+
+
+
+
