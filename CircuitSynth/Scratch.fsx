@@ -160,8 +160,8 @@ let collapse : BoolExpr' [] [] -> BoolExpr' [] -> BoolExpr' [] = fun ops exprs -
                                         exprs'
                                      | _ -> failwith "oups")
               |> Array.concat
-    //fixedPoint (fun exprs -> run' exprs) exprs
-    run' exprs
+    fixedPoint (fun exprs -> run' exprs) exprs
+
 
 let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct -> 
     seq {
@@ -227,7 +227,6 @@ setTimeout(5.0)
 let values = 
     [|0 .. final - 1|]
     |> Array.filter isPowerOfTwo
-    |> Array.take 3
 
 let opStruct = getOpStruct ()
 
@@ -251,7 +250,7 @@ let opStruct' =
 let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 
-verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
+verify numOfVars isPowerOfTwo//(fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
 
 verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
