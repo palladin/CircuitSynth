@@ -312,10 +312,22 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
                 |> Array.length
             (status, result, instrs')
 
+let compileInstrsToBoolExprs : int [] -> Instrs' -> BoolExpr' [] = fun args instrs ->
+    let f : Arg' -> string = fun arg -> 
+        if arg.IsVar then "x" + arg.VarPos.ToString() 
+        else "temp-" + arg.InstrPos.ToString()
+    [| for instr in instrs do 
+            yield
+                match instr.Op with
+                | 0 -> Or' (sprintf "temp-%d" instr.Pos, f instr.Args.[0], f instr.Args.[1])
+                | 1 -> And' (sprintf "temp-%d" instr.Pos, f instr.Args.[0], f instr.Args.[1])
+                | 2 -> Not' (sprintf "temp-%d" instr.Pos, f instr.Args.[0])
+                | _ -> Func' (sprintf "temp-%d" instr.Pos, instr.Args |> Array.take args.[instr.Op] |> Array.map f, instr.Op) |] 
+
 
 let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int []) -> 
               (int * int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * 
-               (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs' * (int * int) []) = 
+               (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs' * BoolExpr' []) = 
     fun numOfVars opStruct verify numOfTries numOfInstrsIndex pos baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let values = [|0..final - 1|]
@@ -401,5 +413,6 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
         let opStr = toOpStr numOfVars
         let arityOfOp = numOfVars
         let stats' = stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd
-        (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', stats')
+        let expr' = compileInstrsToBoolExprs arityOfOps instrs'
+        (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', expr')
 

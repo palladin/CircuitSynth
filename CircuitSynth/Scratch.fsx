@@ -93,8 +93,7 @@ let baseSample : (int -> bool) -> unit -> int [] = fun f () ->
 
 let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' []) [] = fun f samplef opStruct -> 
     [| for i = 1 to 10 do 
-        let (result, pos, f, op, opStr, opExpr, instrs', _) = run numOfVars opStruct f 5 1 numOfSamples samplef
-        let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
+        let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f 5 1 numOfSamples samplef
         yield (result, expr) |]
 
 let ranges : (int -> bool) -> int -> Ops -> seq<int * BoolExpr' []> = fun f c opStruct -> 
@@ -103,10 +102,9 @@ let ranges : (int -> bool) -> int -> Ops -> seq<int * BoolExpr' []> = fun f c op
         let flag = ref false
         while not !flag do
             printfn "Count: %d" !count
-            let (result, pos, _, _, _, _, instrs', _) = run numOfVars opStruct f 3 1 1 (fun () -> [|!count  .. final - 1|])
+            let (result, pos, _, _, _, _, instrs', expr) = run numOfVars opStruct f 3 1 1 (fun () -> [|!count  .. final - 1|])
             if !count = c || result = final  then
                 flag := true
-            let expr = compileInstrsToBoolExprs opStruct.ArityOps instrs' 
             count := !count + 1
             yield (result, expr)
     }
@@ -189,8 +187,7 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         let ranks = 
             [| for matchedExpr in matchedExprs do
                 let opStruct' = updateOps [|matchedExpr|] opStruct
-                let (result, _,  _, _, _, opExpr', instrs', _) = run numOfVars opStruct' f 3 1 1 (fun () -> [|0 .. final - 1|])
-                let expr' = compileInstrsToBoolExprs opStruct'.ArityOps instrs' 
+                let (result, _,  _, _, _, opExpr', instrs', expr') = run numOfVars opStruct' f 3 1 1 (fun () -> [|0 .. final - 1|])
                 yield (result, matchedExpr) |] 
             |> Array.sortBy (fun (result, _) -> -result)
 
@@ -220,8 +217,8 @@ while enum.MoveNext() do
 
     
 
-setTimeout(120.0)
-let _ = run numOfVars (getOpStruct ()) isPrime 3 1 1 (fun () -> [|0 .. final - 1|])
+setTimeout(5.0)
+let _ = run numOfVars (getOpStruct ()) (equalTo 1) 3 1 1 (fun () -> [|0 .. final - 1|])
 //let (_, _, _, _, _, _, _) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (fun () -> stats |> Array.map fst)
 
 
