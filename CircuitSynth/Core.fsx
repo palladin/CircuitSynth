@@ -313,16 +313,22 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             (status, result, instrs')
 
 let compileInstrsToBoolExprs : int [] -> Instrs' -> BoolExpr' [] = fun args instrs ->
+    let dict = new Dictionary<string, string>()
+    let g : string -> string = fun v -> if not <| dict.ContainsKey(v) then 
+                                            let fresh = string (FreshVar ())
+                                            dict.Add(v, fresh)
+                                            fresh
+                                          else dict.[v]
     let f : Arg' -> string = fun arg -> 
         if arg.IsVar then "x" + arg.VarPos.ToString() 
-        else "temp-" + arg.InstrPos.ToString()
+        else g ("temp-" + arg.InstrPos.ToString())
     [| for instr in instrs do 
             yield
                 match instr.Op with
-                | 0 -> Or' (sprintf "temp-%d" instr.Pos, f instr.Args.[0], f instr.Args.[1])
-                | 1 -> And' (sprintf "temp-%d" instr.Pos, f instr.Args.[0], f instr.Args.[1])
-                | 2 -> Not' (sprintf "temp-%d" instr.Pos, f instr.Args.[0])
-                | _ -> Func' (sprintf "temp-%d" instr.Pos, instr.Args |> Array.take args.[instr.Op] |> Array.map f, instr.Op) |] 
+                | 0 -> Or' (g (sprintf "temp-%d" instr.Pos), f instr.Args.[0], f instr.Args.[1])
+                | 1 -> And' (g (sprintf "temp-%d" instr.Pos), f instr.Args.[0], f instr.Args.[1])
+                | 2 -> Not' (g (sprintf "temp-%d" instr.Pos), f instr.Args.[0])
+                | _ -> Func' (g (sprintf "temp-%d" instr.Pos), instr.Args |> Array.take args.[instr.Op] |> Array.map f, instr.Op) |] 
 
 
 let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int []) -> 

@@ -215,16 +215,34 @@ enum.MoveNext()
 while enum.MoveNext() do
     ()
 
-    
+
 
 setTimeout(5.0)
-let _ = run numOfVars (getOpStruct ()) (equalTo 1) 3 1 1 (fun () -> [|0 .. final - 1|])
-//let (_, _, _, _, _, _, _) = run numOfVars (getOpStruct ()) isPowerOfTwo 10 1 numOfSamples (fun () -> stats |> Array.map fst)
 
+
+let values = 
+    [|0 .. final - 1|]
+    |> Array.filter isPowerOfTwo
+    |> Array.take 3
+
+let exprs = 
+    values
+    |> Array.map (fun i -> 
+            let (_, _,  _, _, _, _, _, expr') = run numOfVars (getOpStruct ()) (equalTo i) 3 1 1 (fun () -> [|0 .. final - 1|])
+            expr')
+
+let opStruct' = updateOps exprs (getOpStruct ())
+let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct' (fun i -> values |> Array.exists (fun j -> j = i)) 5 1 1 (fun () -> [|0 .. final - 1|])
 
 
 //let expr' = compileInstrsToBoolExprs (getOpStruct ()).ArityOps instrs' 
-//verify numOfVars (equalTo 12) (fun i -> let g = eval' (getOpStruct ()).Ops expr'  in g (toBits' numOfVars i))
+let expr'' = collapse opStruct'.OpExprs' expr'
+verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i)) 
+                 (fun i -> let g = eval' opStruct'.Ops expr'  in g (toBits' numOfVars i))
+
+verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr'  in g (toBits' numOfVars i))
+                 (fun i -> let g = eval' opStruct'.Ops expr''  in g (toBits' numOfVars i))
+
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
 
