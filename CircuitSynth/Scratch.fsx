@@ -154,10 +154,14 @@ let collapse : BoolExpr' [] [] -> BoolExpr' [] -> BoolExpr' [] = fun ops exprs -
         exprs |> Array.map (function | And' (v, x, y) -> [|And' (v, x, y)|]
                                      | Or' (v, x, y) -> [|Or' (v, x, y)|]
                                      | Not' (v, x) -> [|Not' (v, x)|]
-                                     | Func' (v, args, iop) -> subs args ops.[iop] 
+                                     | Func' (v, args, iop) -> 
+                                        let exprs' = subs args ops.[iop]
+                                        exprs'.[0] <- updateVarBoolExpr' exprs'.[0] v
+                                        exprs'
                                      | _ -> failwith "oups")
               |> Array.concat
-    fixedPoint (fun exprs -> run' exprs) exprs
+    //fixedPoint (fun exprs -> run' exprs) exprs
+    run' exprs
 
 let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct -> 
     seq {
@@ -225,23 +229,34 @@ let values =
     |> Array.filter isPowerOfTwo
     |> Array.take 3
 
+let opStruct = getOpStruct ()
+
 let exprs = 
     values
-    |> Array.map (fun i -> 
-            let (_, _,  _, _, _, _, _, expr') = run numOfVars (getOpStruct ()) (equalTo i) 3 1 1 (fun () -> [|0 .. final - 1|])
-            expr')
-
-let opStruct' = updateOps exprs (getOpStruct ())
-let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct' (fun i -> values |> Array.exists (fun j -> j = i)) 5 1 1 (fun () -> [|0 .. final - 1|])
+    |> Array.mapi (fun i n -> 
+            let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) 3 1 1 (fun () -> [|0 .. final - 1|])
+            (i + 1, expr'))
 
 
-//let expr' = compileInstrsToBoolExprs (getOpStruct ()).ArityOps instrs' 
-let expr'' = collapse opStruct'.OpExprs' expr'
-verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i)) 
-                 (fun i -> let g = eval' opStruct'.Ops expr'  in g (toBits' numOfVars i))
+let opStruct' = 
+    Array.fold (fun opStruct' (n, expr) -> 
+                    let opStruct' = updateOps [|expr|] opStruct'
+                    let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct' (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 5 1 1 (fun () -> [|0 .. final - 1|])
+                    for i = 3 to opStruct'.Ops.Length - 1 do
+                        opStruct'.Active.[i] <- false
+                    updateOps [|expr'|] opStruct'
+               ) opStruct exprs
 
-verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr'  in g (toBits' numOfVars i))
-                 (fun i -> let g = eval' opStruct'.Ops expr''  in g (toBits' numOfVars i))
+
+let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
+let expr' = collapse opStruct'.OpExprs' expr
+
+verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
+                 (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
+
+verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
+                 (fun i -> let g = eval' opStruct'.Ops expr' in g (toBits' numOfVars i))
+
 
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors

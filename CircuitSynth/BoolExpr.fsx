@@ -50,6 +50,14 @@ let getVarBoolExpr' : BoolExpr' -> string = fun expr ->
     | Not' (v, x) | Var' (v, x) -> v
     | Func' (v, _,  _) -> v
 
+let updateVarBoolExpr' : BoolExpr' -> string -> BoolExpr' = fun expr v -> 
+    match expr with 
+    | And' (_, x, y) -> And' (v, x, y)  
+    | Or' (_, x, y) -> Or' (v, x, y) 
+    | Not' (_, x) -> Not' (v, x)
+    | Var' (_, x) -> Var' (v, x) 
+    | Func' (_, args,  iop) -> Func' (v, args, iop) 
+
 let toBoolExpr : (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr = 
     fun opExprs exprs res vars ->
         let dict = new Dictionary<string, BoolExpr>()
@@ -187,14 +195,20 @@ let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 let subs : string [] -> BoolExpr' [] -> BoolExpr' [] = fun args exprs -> 
     let vars = [|0..args.Length - 1|] |> Array.map (fun i -> "x" + string i)
     let map = (vars, args) ||> Array.zip |> Map.ofArray 
+    let dict = new Dictionary<string, string>()
+    let g : string -> string = fun v -> if not <| dict.ContainsKey(v) then 
+                                            let fresh = string (FreshVar ())
+                                            dict.Add(v, fresh)
+                                            fresh
+                                          else dict.[v]
     let f : string -> string = fun v ->  
         match Map.tryFind v map with
         | Some v' -> v'
-        | None -> v
-    exprs |> Array.map (function | And' (v, x, y) -> And' (v, f x, f y)
-                                 | Or' (v, x, y) -> Or' (v, f x, f y)
-                                 | Not' (v, x) -> Not' (v, f x)
-                                 | Func' (v, args, iop) -> Func' (v, args |> Array.map f, iop)
+        | None -> g v
+    exprs |> Array.map (function | And' (v, x, y) -> And' (g v, f x, f y)
+                                 | Or' (v, x, y) -> Or' (g v, f x, f y)
+                                 | Not' (v, x) -> Not' (g v, f x)
+                                 | Func' (v, args, iop) -> Func' (g v, args |> Array.map f, iop)
                                  | _ -> failwith "oups")
 
 

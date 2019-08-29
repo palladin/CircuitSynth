@@ -415,10 +415,11 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
         printfn "%A %A" (status, result) elapsed
 
         let opExpr = compileInstrs' opExprs arityOfOps instrs' 
+        let expr' = compileInstrsToBoolExprs arityOfOps instrs'
         let ops = evalInstrs' ops instrs'
         let opStr = toOpStr numOfVars
         let arityOfOp = numOfVars
         let stats' = stats |> Array.mapi (fun i c -> (i, c)) |> Array.sortBy snd
-        let expr' = compileInstrsToBoolExprs arityOfOps instrs'
+
         (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', expr')
 
