@@ -227,9 +227,14 @@ while enum.MoveNext() do
 
 let values = 
     [|0 .. final - 1|]
-    |> Array.filter isPowerOfTwo
+    |> Array.filter isPrime
 
-let opStruct = getOpStruct ()
+
+let (_, _,  _, _, _, _, _, falseExpr) = run numOfVars (getOpStruct ()) (fun _ -> false) 3 1 1 (fun () -> [|0 .. final - 1|])
+
+let opStruct = updateOps [|falseExpr|] (getOpStruct ())
+//let opStruct = (getOpStruct ())
+
 
 let exprs = 
     values
@@ -242,7 +247,7 @@ let opStruct' =
     Array.fold (fun opStruct' (n, expr) -> 
                     let opStruct' = updateOps [|expr|] opStruct'
                     let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct' (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 5 1 1 (fun () -> [|0 .. final - 1|])
-                    for i = 3 to opStruct'.Ops.Length - 1 do
+                    for i = opStruct.Ops.Length to opStruct'.Ops.Length - 1 do
                         opStruct'.Active.[i] <- false
                     updateOps [|expr'|] opStruct'
                ) opStruct exprs
@@ -250,6 +255,7 @@ let opStruct' =
 
 let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
+
 
 
 verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))

@@ -46,9 +46,9 @@ let lookupInstrValue : BoolExpr -> BoolExpr [] -> Instrs -> BoolExpr =
         (instrs, False) ||> Array.foldBack (fun instr s -> If (Eq instr.Pos instrPos) (Eq [|value|] [|instr.Value|]) s) 
 
 
-let createInstrs : int -> int -> int -> int [] -> int -> Instrs = 
-    fun varBitSize instrBitSize opBitSize arityOfOps numOfInstrs ->
-        let numOfArgs = arityOfOps |> Array.max
+let createInstrs : int -> int -> int -> int -> int [] -> int -> Instrs = 
+    fun numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs ->
+        let numOfArgs = numOfVars
         [| for i in [|0..numOfInstrs - 1|] do
                 yield { Pos = toBits instrBitSize i; Value = FreshVar (); Op = VarPos opBitSize (sprintf "OpVar-%d" i)
                         Args = [|0..numOfArgs - 1|] 
@@ -274,7 +274,7 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
 
         for i in sample do
             let vars = createVars varBitSize numOfVars
-            let instrs = createInstrs varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
+            let instrs = createInstrs numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
 
             let eval = evalInstrs availableOpExprs opExprs vars instrs
 
@@ -286,7 +286,7 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             solver.Assert(And [|eval; And inputVarCheck; test|])    
 
         let vars = createVars varBitSize numOfVars
-        let instrs = createInstrs varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
+        let instrs = createInstrs numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
         let check = checkInstrs availableOpExprs arityOfOps numOfOps vars instrs
         solver.Assert(check)
 
