@@ -96,16 +96,17 @@ let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' [])
         let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f 5 1 numOfSamples samplef
         yield (result, expr) |]
 
-let ranges : (int -> bool) -> int -> Ops -> seq<int * BoolExpr' []> = fun f c opStruct -> 
+let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct -> 
     seq {
-        let count = ref 0
-        let flag = ref false
-        while not !flag do
-            printfn "Count: %d" !count
-            let (result, pos, _, _, _, _, instrs', expr) = run numOfVars opStruct f 3 1 1 (fun () -> [|!count  .. final - 1|])
-            if !count = c || result = final  then
-                flag := true
-            count := !count + 1
+        
+        let values = 
+            [|0 .. final - 1|]
+            |> Array.filter f
+
+        printfn "Values: %A" values
+        for n = 1 to values.Length do
+            let (result, pos, _, _, _, _, instrs', expr) = 
+                run numOfVars opStruct (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 3 1 1 (fun () -> [|0  .. final - 1|])
             yield (result, expr)
     }
 
@@ -165,12 +166,12 @@ let collapse : BoolExpr' [] [] -> BoolExpr' [] -> BoolExpr' [] = fun ops exprs -
 
 let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct -> 
     seq {
-        setTimeout(5.0 * float 1)
+        setTimeout(20.0 * float 1)
 
         //for (result, expr) in ranges f opStruct  do
         //    yield ()
 
-        let results = ranges f 10 opStruct |> Seq.toArray
+        let results = ranges f opStruct |> Seq.toArray
         printfn "%A" results
         let exprs = results |> Array.map snd 
         yield ()
@@ -187,7 +188,7 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         let matchedExprs = matches' |> Array.map (fun (_, _, expr) -> expr)
         //let opStruct' = updateOps matchedExprs opStruct
 
-        setTimeout(5.0 * float 1)
+        setTimeout(20.0 * float 1)
         let ranks = 
             [| for matchedExpr in matchedExprs do
                 let opStruct' = updateOps [|matchedExpr|] opStruct
@@ -221,7 +222,7 @@ while enum.MoveNext() do
 
 
 
-setTimeout(5.0)
+
 
 
 let values = 
@@ -250,7 +251,8 @@ let opStruct' =
 let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 
-verify numOfVars isPowerOfTwo//(fun i -> values |> Array.exists (fun j -> j = i))
+
+verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
 
 verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
@@ -261,4 +263,6 @@ verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOf
 writeTruthTable "tt.csv" 8 [|0..255|] xors
 
 
+setTimeout(120.0)
+let (_, _,  _, _, _, _, _, expr'') = run numOfVars opStruct isPowerOfTwo 20 23 1 (fun () -> [|0 .. final - 1|])
 
