@@ -74,9 +74,9 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
         let lookupMap = exprs |> toMapBoolExpr
         let rec rndBoolExpr' : string -> seq<BoolExpr'> = 
             fun name ->
-                match Map.tryFind name lookupMap with
+                match Array.tryFind (fun (key, _) -> key = name) lookupMap with
                 | None -> Seq.empty
-                | Some expr ->
+                | Some (_, expr) ->
                     match expr with
                     | And' (v, x, y) | Or' (v, x, y) as expr -> 
                         seq { yield expr; yield! [|x; y|] |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
@@ -223,11 +223,11 @@ while enum.MoveNext() do
 
 
 
-
+let f : int -> bool = isPrime
 
 let values = 
     [|0 .. final - 1|]
-    |> Array.filter isPrime
+    |> Array.filter f
 
 
 let (_, _,  _, _, _, _, _, falseExpr) = run numOfVars (getOpStruct ()) (fun _ -> false) 3 1 1 (fun () -> [|0 .. final - 1|])
@@ -239,14 +239,16 @@ let opStruct = updateOps [|falseExpr|] (getOpStruct ())
 let exprs = 
     values
     |> Array.mapi (fun i n -> 
-            let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) 3 1 1 (fun () -> [|0 .. final - 1|])
+            let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) 3 1 1 (fun () -> getSample f [|0 .. final - 1|] final)
             (i + 1, expr'))
 
 
 let opStruct' = 
     Array.fold (fun opStruct' (n, expr) -> 
                     let opStruct' = updateOps [|expr|] opStruct'
-                    let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct' (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 5 1 1 (fun () -> [|0 .. final - 1|])
+                    let (result, _,  _, _, _, _, _, expr') = run numOfVars opStruct' (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 5 1 1 (fun () -> getSample f [|0 .. final - 1|] final)
+                    if result <> final then
+                        failwith "oups"
                     for i = opStruct.Ops.Length to opStruct'.Ops.Length - 1 do
                         opStruct'.Active.[i] <- false
                     updateOps [|expr'|] opStruct'

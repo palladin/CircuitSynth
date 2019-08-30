@@ -76,15 +76,15 @@ let toBoolExpr : (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> BoolExpr' [] -> Boo
                                          | _ -> failwith "oups") 
 
         And <| Array.append [|Eq [|res|] [|f <| getVarBoolExpr' exprs.[0]|]|] exprs'
-    
-let toMapBoolExpr : BoolExpr' [] -> Map<string, BoolExpr'> = fun exprs ->
+
+let toMapBoolExpr : BoolExpr' [] -> (string * BoolExpr') [] = fun exprs ->
     exprs |> Array.map (fun expr -> match expr with 
                                      | And' (v, x, y) -> (v, expr)
                                      | Or' (v, x, y) -> (v, expr)
                                      | Not' (v, x) -> (v, expr)
                                      | Var' (v, x) -> (v, expr)
                                      | Func' (v, _, _) -> (v, expr))
-          |> Map.ofArray
+          
 
 let toDictBoolExpr : BoolExpr' [] -> Dictionary<string, BoolExpr'> = fun exprs ->
     let dict = new Dictionary<string, BoolExpr'>()
@@ -130,8 +130,8 @@ let eval' : (bool [] -> bool) [] -> BoolExpr' [] -> bool [] -> bool = fun ops ex
             if x.StartsWith("x") then  
                 map |> Array.find (fun (key, _) -> key = x) |> snd
             else run x
-        match Map.tryFind name lookupMap with
-        | Some expr -> 
+        match Array.tryFind (fun (key, _) -> key = name) lookupMap with
+        | Some (_, expr) -> 
             match expr with
             | And' (v, x, y) -> 
                 f x && f y
@@ -171,7 +171,7 @@ let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
     let dict = new Dictionary<string, string>()
     let i = ref -1
     let f : string -> string = fun name -> 
-        match Map.tryFind name lookupMap with
+        match Array.tryFind (fun (key, _) -> key = name) lookupMap with
         | None -> 
             if dict.ContainsKey(name) then
                 dict.[name]
