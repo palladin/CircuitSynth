@@ -69,8 +69,8 @@ let isEven = (fun i -> i % 2 = 0)
 let equalTo n = (fun i -> i = n)
 
 
-let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] = 
-    fun n exprs ->
+let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> = 
+    fun exprs ->
         let lookupMap = exprs |> toMapBoolExpr
         let rec rndBoolExpr' : string -> seq<BoolExpr'> = 
             fun name ->
@@ -79,13 +79,13 @@ let rndBoolExpr : int -> BoolExpr' [] -> BoolExpr' [] =
                 | Some (_, expr) ->
                     match expr with
                     | And' (v, x, y) | Or' (v, x, y) as expr -> 
-                        seq { yield expr; yield! [|x; y|] |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
+                        seq { yield expr; yield! [|x; y|] |> randomize |> Seq.filter (fun _ -> true) |> Seq.map rndBoolExpr' |> merge' } 
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
                     | Func' (v, args, iops) ->
-                        seq { yield expr; yield! args |> randomize |> Seq.filter (fun _ -> rndBit ()) |> Seq.map rndBoolExpr' |> merge' } 
-        rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) |> take' n |> Array.ofSeq
+                        seq { yield expr; yield! args |> randomize |> Seq.filter (fun _ -> true) |> Seq.map rndBoolExpr' |> merge' } 
+        rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) 
 
 let baseSample : (int -> bool) -> unit -> int [] = fun f () -> 
     let sample = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
@@ -110,12 +110,11 @@ let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct ->
             yield (result, expr)
     }
 
-let randomSubExprs : BoolExpr' [] [] -> BoolExpr' [] [] = fun exprs -> 
-    [| for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr (rand.Next(2, expr.Length)) expr |> updateVars) [||]) |> take' 100 |] 
+let randomSubExprs : int -> BoolExpr' [] [] -> seq<BoolExpr' []> = fun n exprs -> 
+    seq { for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr expr |> take' n |> Seq.toArray) [||]) }
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.distinct
-    |> Seq.toArray
 
 let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opStruct exprs -> 
     let dict = new Dictionary<int, int>()
@@ -175,7 +174,7 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         printfn "%A" results
         let exprs = results |> Array.map snd 
         yield ()
-        let exprs' = randomSubExprs exprs
+        let exprs' = randomSubExprs 10 exprs |> Seq.take 10 |> Seq.toArray
         printfn "%A" exprs'
         yield ()
         let matches' = matches opStruct exprs'
@@ -223,17 +222,17 @@ while enum.MoveNext() do
 
 
 
-let f : int -> bool = isPrime
+let f : int -> bool = isPowerOfTwo
 
 let values = 
     [|0 .. final - 1|]
     |> Array.filter f
 
 
-let (_, _,  _, _, _, _, _, falseExpr) = run numOfVars (getOpStruct ()) (fun _ -> false) 3 1 1 (fun () -> [|0 .. final - 1|])
+//let (_, _,  _, _, _, _, _, falseExpr) = run numOfVars (getOpStruct ()) (fun _ -> false) 3 1 1 (fun () -> [|0 .. final - 1|])
 
-let opStruct = updateOps [|falseExpr|] (getOpStruct ())
-//let opStruct = (getOpStruct ())
+//let opStruct = updateOps [|falseExpr|] (getOpStruct ())
+let opStruct = (getOpStruct ())
 
 
 let exprs = 
@@ -258,6 +257,14 @@ let opStruct' =
 let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 
+
+#time
+
+
+randomSubExprs 10 [|expr'|] |> Seq.map Array.length
+let rndExpr = rndBoolExpr expr' |> take' 10 |> Seq.toArray 
+rndExpr |> getLeafVars
+rndExpr |> updateVars |> getLeafVars
 
 
 verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))

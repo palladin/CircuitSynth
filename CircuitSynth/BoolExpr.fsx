@@ -190,7 +190,24 @@ let updateVars : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
         | Func' (v, args, iop) -> exprs.[i] <- Func' (f v, args |> Array.map f, iop)
     exprs
 
-
+let getLeafVars : BoolExpr' [] -> string [] = fun exprs ->
+    let lookupMap = exprs |> toMapBoolExpr
+    let f : string -> string = fun name -> 
+        match Array.tryFind (fun (key, _) -> key = name) lookupMap with
+        | None -> name 
+        | Some _ -> ""
+    [| for expr in exprs do
+            yield 
+                match expr with
+                | And' (v, x, y) -> [|x; y|] |> Array.map f
+                | Or' (v, x, y) -> [|x; y|] |> Array.map f
+                | Not' (v, x) -> [|x|] |> Array.map f
+                | Var' (_, _) -> failwith "oups"
+                | Func' (v, args, iop) -> args |> Array.map f
+    |]
+    |> Array.concat
+    |> Array.filter (fun v -> v <> "")
+    |> Array.distinct
 
 let subs : string [] -> BoolExpr' [] -> BoolExpr' [] = fun args exprs -> 
     let vars = [|0..args.Length - 1|] |> Array.map (fun i -> "x" + string i)
