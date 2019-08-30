@@ -234,6 +234,10 @@ let values =
 //let opStruct = updateOps [|falseExpr|] (getOpStruct ())
 let opStruct = (getOpStruct ())
 
+setTimeout(120.0)
+for i = 1 to 30 do
+    let (status, _) = find' numOfVars opStruct (equalTo 2) [|0 .. final - 1|] i 
+    printfn "%A" status
 
 let exprs = 
     values

@@ -130,6 +130,21 @@ let equiv' : BoolExpr [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) -> (BoolExpr -
         | Status.SATISFIABLE -> false
         | _-> failwith "UNKNOWN"
 
+let equivs : BoolExpr [] -> BoolExpr [] -> BoolExpr [] -> bool [] = 
+    fun freshVars fs gs ->
+        let solver = ctx.MkSolver("UFBV")
+
+        let asserts : (BoolExpr * BoolExpr) [] = 
+            [| for (f, g) in (fs, gs) ||> Array.zip do
+                let var = FreshVar ()
+                yield (var, Eq [|var|] [|ctx.MkForall(freshVars |> Array.map (fun expr -> expr :> _), Eq [|f|] [|g|]) :> BoolExpr|])
+            |]
+        asserts |> Seq.iter (fun (_, assert') -> solver.Assert(assert'))
+        //printfn "%s" <| solver.ToString()
+        match solver.Check() with
+        | Status.SATISFIABLE -> asserts |> Array.map (fun (var,_ ) -> toBool solver.Model var)
+        | Status.UNSATISFIABLE -> [||]
+        | _-> failwith "UNKNOWN"
 
 let toInstrs' : Model -> Instrs -> Instrs' = fun model instrs ->
     [| for instr in instrs do
@@ -254,6 +269,79 @@ let verify : int -> (int -> bool) -> (int -> bool) -> int = fun numOfVars f g ->
 
 let freshVars numOfVars = [|0..numOfVars - 1|] |> Array.map (fun i -> Var ("x" + string i))
 let toOpStr : int -> string [] -> string = fun i args -> sprintf "func%d(%s)" i (String.concat "," args)
+
+let evalQuantifierInstrs : int [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> Vars -> Instrs -> BoolExpr -> BoolExpr = 
+    fun availableOpExprs ops vars instrs result ->
+        let check = 
+            And [| for instr in instrs do
+                        let opBitSize = instr.Op.Length
+                        let freshVars = instr.Args |> Array.map (fun _ -> FreshVar ())
+                        let args = (freshVars, instr.Args) 
+                                   ||> Array.zip 
+                                   |> Array.map (fun (freshVar, arg) -> If arg.IsVar (lookupVarValue freshVar arg.VarPos vars)
+                                                                                     (lookupInstrValue freshVar arg.InstrPos instrs))
+                        let resultVars = availableOpExprs |> Array.map (fun _ -> FreshVar ())
+                        let resultOps = availableOpExprs |> Array.map (fun i -> ops.[i] resultVars.[i] freshVars)
+                        let value =
+                            availableOpExprs 
+                            |> Array.map (fun i -> If (Eq instr.Op (toBits opBitSize i)) resultVars.[i] False)
+                            |> Or
+
+                        yield ctx.MkExists(Array.append freshVars resultVars |> Array.map (fun var -> var :> _), And [|And resultOps; Eq [|instr.Value|] [|value|]; And args |]) :> _ |]
+        let instrVars = instrs |> Array.map (fun instr -> instr.Value :> Expr)
+        ctx.MkExists(instrVars, And [|Eq [|instrs.[0].Value|] [|result|]; check|]) :> _
+
+
+let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') = 
+    fun numOfVars opStruct verify testData numOfInstrs ->
+        let opExprs = opStruct.OpExprs
+        let ops = opStruct.Ops
+        let opStrs = opStruct.OpStrs 
+        let arityOfOps = opStruct.ArityOps
+        let availableOpExprs = 
+            opStruct.Active 
+            |> Array.mapi (fun i b -> (i, b))
+            |> Array.filter (fun (_, b) -> b)
+            |> Array.map (fun (i, _) -> i)
+
+        let varBitSize = 3
+        let instrBitSize = 8
+        let opBitSize = 5
+        let numOfOps = availableOpExprs.Length
+        let verify' = toFuncBoolExpr numOfVars testData verify
+
+        //let t = ctx.MkTactic("qffd")
+        let solver = ctx.MkSolver("UFBV")
+        let p = ctx.MkParams()
+        //solver.Parameters <- p.Add("acce", true).Add("abce", true).Add("cce", true)
+
+        let vars = createVars varBitSize numOfVars
+        let freshVars = vars |> Array.map (fun var -> var.Value)
+        let instrs = createInstrs numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
+        let check = checkInstrs availableOpExprs arityOfOps numOfOps vars instrs
+        let eval = evalQuantifierInstrs availableOpExprs opExprs vars instrs (verify' freshVars)
+
+        solver.Assert(ctx.MkForall(freshVars |> Array.map (fun var -> var :> _), 
+                                   And [|eval; check|]))
+
+        //printfn "%s" <| solver.ToString()
+        let status = solver.Check() 
+        if not (status = Status.SATISFIABLE) then
+            (status, null)
+        else
+            let model = solver.Model
+            let instrs' = toInstrs' model instrs
+
+            printfn "%s" (strInstrs opStrs arityOfOps instrs')
+            let flag = 
+                testData 
+                |> Array.map (fun i -> verify i = evalInstrs' ops instrs' (toBits' numOfVars i) )
+                |> Array.reduce (&&)
+            if not flag then
+                Printf.failwithf "Invalid Instrs %s" (strInstrs opStrs arityOfOps instrs')
+
+            (status, instrs')
+
 
 let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> 
            (bool [] -> bool) [] ->
