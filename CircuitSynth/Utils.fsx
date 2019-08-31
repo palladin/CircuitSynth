@@ -2,6 +2,7 @@
 
 open Init
 open System
+open System.Collections.Generic
 
 let swap (a: _[]) x y =
     let tmp = a.[x]
@@ -26,22 +27,25 @@ let (|SeqEmpty|SeqCons|) xs =
   if Seq.isEmpty xs then SeqEmpty
   else SeqCons(Seq.head xs, Seq.skip 1 xs)
 
-let rec merge : seq<'a> -> seq<'a> -> seq<'a> = 
+let merge : seq<'a> -> seq<'a> -> seq<'a> = 
     fun xs ys -> 
-        seq {
-          match xs, ys with
-          | SeqCons(x, xs), SeqCons(y, ys) -> 
-            yield x
-            yield y
-            yield! merge xs ys
-          | SeqEmpty, SeqCons(y, ys) -> 
-            yield y
-            yield! merge xs ys
-          | SeqCons(x, xs), SeqEmpty -> 
-            yield x
-            yield! merge xs ys
-          | SeqEmpty, SeqEmpty -> ()
-        }
+        let rec run' : IEnumerator<'a> -> IEnumerator<'a> -> seq<'a> = fun xs ys ->
+            seq {
+              match xs.MoveNext(), ys.MoveNext() with
+              | true, true -> 
+                yield xs.Current
+                yield ys.Current
+                yield! run' xs ys
+              | true, false -> 
+                  yield xs.Current
+                  yield! run' xs ys
+              | false, true -> 
+                yield ys.Current
+                yield! run' xs ys
+              | false, false -> ()
+            }
+        run' (xs.GetEnumerator()) (ys.GetEnumerator())
+
 
 let merge' : seq<seq<'a>> -> seq<'a> = 
     fun xss ->

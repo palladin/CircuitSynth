@@ -511,3 +511,22 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
 
         (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', expr')
 
+
+let rec run' : int -> Ops -> (int -> bool) -> int -> int -> int [] -> (int * BoolExpr' []) = 
+    fun numOfVars opStruct verify numOfTries numOfInstrsIndex testData ->
+        let watch = new Stopwatch()
+        watch.Start()
+        let (status, instrs') = find' numOfVars opStruct verify testData  numOfInstrsIndex
+        watch.Stop()
+        printfn "%d %A %A" numOfInstrsIndex status watch.Elapsed
+        match status with
+        | Status.SATISFIABLE -> 
+            let expr' = compileInstrsToBoolExprs opStruct.ArityOps instrs'
+            (testData.Length, expr')
+        | Status.UNSATISFIABLE -> 
+            run' numOfVars opStruct verify numOfTries (numOfInstrsIndex + 1) testData
+        | Status.UNKNOWN when numOfTries = 0 ->
+            (0, [||])
+        | Status.UNKNOWN -> 
+            run' numOfVars opStruct verify (numOfTries - 1) (numOfInstrsIndex + 1) testData
+        | _ -> failwith "oups"
