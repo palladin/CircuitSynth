@@ -13,6 +13,48 @@ open CoreTypes
 open Core
 
 
+let toMapBoolExpr : BoolExpr' [] -> (string * BoolExpr') [] = fun exprs ->
+    exprs |> Array.map (fun expr -> match expr with 
+                                     | And' (v, x, y) -> (v, expr)
+                                     | Or' (v, x, y) -> (v, expr)
+                                     | Not' (v, x) -> (v, expr)
+                                     | Var' (v, x) -> (v, expr)
+                                     | Func' (v, _, _) -> (v, expr))
+          
+
+let toDictBoolExpr : BoolExpr' [] -> Dictionary<string, BoolExpr'> = fun exprs ->
+    let dict = new Dictionary<string, BoolExpr'>()
+    let vars = 
+        exprs |> Array.map (fun expr -> match expr with 
+                                         | And' (v, x, y) -> (v, expr)
+                                         | Or' (v, x, y) -> (v, expr)
+                                         | Not' (v, x) -> (v, expr)
+                                         | Var' (v, x) -> (v, expr)
+                                         | Func' (v, _, _) -> (v, expr))
+    for (v, expr) in vars do
+        dict.Add(v, expr)
+    dict
+          
+    
+
+let countOps' : BoolExpr' [] -> int = fun exprs ->
+    exprs |> Array.map (function | And' (v, x, y) -> 1
+                                 | Or' (v, x, y) -> 1
+                                 | Not' (v, x) -> 1
+                                 | Var' (v, x) -> 0
+                                 | Func' _ -> 1)
+          |> Array.sum
+
+let countVars : BoolExpr' [] -> int = fun exprs ->
+    exprs |> Array.map (function | And' (v, x, y) -> [|x; y|]
+                                 | Or' (v, x, y) -> [|x; y|]
+                                 | Not' (v, x) -> [|x|]
+                                 | Func' (v, args, _) -> args
+                                 | _ -> failwith "oups")
+          |> Array.concat
+          |> Array.filter (fun x -> x.StartsWith("x"))
+          |> Array.distinct
+          |> Array.length
 
 
 let toBoolExpr' : BoolExpr -> BoolExpr' []  = fun expr ->
@@ -77,48 +119,40 @@ let toBoolExpr : (BoolExpr -> BoolExpr [] -> BoolExpr) [] -> BoolExpr' [] -> Boo
 
         And <| Array.append [|Eq [|res|] [|f <| getVarBoolExpr' exprs.[0]|]|] exprs'
 
-let toMapBoolExpr : BoolExpr' [] -> (string * BoolExpr') [] = fun exprs ->
-    exprs |> Array.map (fun expr -> match expr with 
-                                     | And' (v, x, y) -> (v, expr)
-                                     | Or' (v, x, y) -> (v, expr)
-                                     | Not' (v, x) -> (v, expr)
-                                     | Var' (v, x) -> (v, expr)
-                                     | Func' (v, _, _) -> (v, expr))
-          
+let compileToBoolExpr : BoolExpr' [] -> BoolExpr -> BoolExpr [] -> BoolExpr =  fun exprs res vars  -> 
+    let dict = new Dictionary<string, BoolExpr>()
+    for i = 0 to vars.Length - 1 do
+        dict.Add("x" + string i, vars.[i]) 
+    let lookupMap = exprs |> toMapBoolExpr
+    let cache = new Dictionary<string, BoolExpr>()
+    let rec run : string -> BoolExpr = fun name ->
+        let f : string -> BoolExpr = fun x -> 
+            if x.StartsWith("x") then  
+                dict.[x]
+            else 
+                if cache.ContainsKey(x) then
+                    cache.[x]
+                else
+                    let expr = run x
+                    cache.Add(x, expr)
+                    expr
+        match Array.tryFind (fun (key, _) -> key = name) lookupMap with
+        | Some (_, expr) -> 
+            match expr with
+            | And' (v, x, y) -> 
+                And [|f x; f y|]
+            | Or' (v, x, y) -> 
+                Or [|f x; f y|]
+            | Not' (v, x) ->
+                Not (f x)
+            | Func' (v, args, iop) -> 
+                failwith "oups"
+            | _ -> failwith "oups"
+        | None -> failwithf "not found %s" name
+    let expr = run (getVarBoolExpr' exprs.[0])
+    Eq [|res|] [|expr|]
 
-let toDictBoolExpr : BoolExpr' [] -> Dictionary<string, BoolExpr'> = fun exprs ->
-    let dict = new Dictionary<string, BoolExpr'>()
-    let vars = 
-        exprs |> Array.map (fun expr -> match expr with 
-                                         | And' (v, x, y) -> (v, expr)
-                                         | Or' (v, x, y) -> (v, expr)
-                                         | Not' (v, x) -> (v, expr)
-                                         | Var' (v, x) -> (v, expr)
-                                         | Func' (v, _, _) -> (v, expr))
-    for (v, expr) in vars do
-        dict.Add(v, expr)
-    dict
-          
-    
 
-let countOps' : BoolExpr' [] -> int = fun exprs ->
-    exprs |> Array.map (function | And' (v, x, y) -> 1
-                                 | Or' (v, x, y) -> 1
-                                 | Not' (v, x) -> 1
-                                 | Var' (v, x) -> 0
-                                 | Func' _ -> 1)
-          |> Array.sum
-
-let countVars : BoolExpr' [] -> int = fun exprs ->
-    exprs |> Array.map (function | And' (v, x, y) -> [|x; y|]
-                                 | Or' (v, x, y) -> [|x; y|]
-                                 | Not' (v, x) -> [|x|]
-                                 | Func' (v, args, _) -> args
-                                 | _ -> failwith "oups")
-          |> Array.concat
-          |> Array.filter (fun x -> x.StartsWith("x"))
-          |> Array.distinct
-          |> Array.length
 
 
 let eval' : (bool [] -> bool) [] -> BoolExpr' [] -> bool [] -> bool = fun ops exprs vars ->

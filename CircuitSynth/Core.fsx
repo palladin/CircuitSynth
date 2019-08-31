@@ -309,7 +309,7 @@ let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') =
         let opBitSize = 5
         let numOfOps = availableOpExprs.Length
         let verify' = toFuncBoolExpr numOfVars testData verify
-
+        
         //let t = ctx.MkTactic("qffd")
         let solver = ctx.MkSolver("UFBV")
         let p = ctx.MkParams()
@@ -320,11 +320,10 @@ let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') =
         let instrs = createInstrs numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
         let check = checkInstrs availableOpExprs arityOfOps numOfOps vars instrs
         let eval = evalQuantifierInstrs availableOpExprs opExprs vars instrs (verify' freshVars)
-
+        
         solver.Assert(ctx.MkForall(freshVars |> Array.map (fun var -> var :> _), 
                                    And [|eval; check|]))
-
-        //printfn "%s" <| solver.ToString()
+                                   
         let status = solver.Check() 
         if not (status = Status.SATISFIABLE) then
             (status, null)
@@ -516,9 +515,14 @@ let rec run' : int -> Ops -> (int -> bool) -> int -> int -> int [] -> (int * Boo
     fun numOfVars opStruct verify numOfTries numOfInstrsIndex testData ->
         let watch = new Stopwatch()
         watch.Start()
+        let availableOpExprs = 
+            opStruct.Active 
+            |> Array.mapi (fun i b -> (i, b))
+            |> Array.filter (fun (_, b) -> b)
+            |> Array.map (fun (i, _) -> i)
         let (status, instrs') = find' numOfVars opStruct verify testData  numOfInstrsIndex
         watch.Stop()
-        printfn "%d %A %A" numOfInstrsIndex status watch.Elapsed
+        printfn "%d %A %A %A" numOfInstrsIndex availableOpExprs status watch.Elapsed
         match status with
         | Status.SATISFIABLE -> 
             let expr' = compileInstrsToBoolExprs opStruct.ArityOps instrs'

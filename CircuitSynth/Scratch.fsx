@@ -138,17 +138,6 @@ let matches : Ops -> BoolExpr' [] [] -> (int * int * BoolExpr' []) [] = fun opSt
     |> Array.rev
 
 
-let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops -> 
-    ([|0..exprs.Length - 1|], exprs)
-    ||> Array.zip
-    |> Array.fold (fun ops' (i, expr) -> 
-                                   { OpExprs = Array.append ops'.OpExprs [|toBoolExpr ops.OpExprs expr|] ;
-                                     Ops = Array.append ops'.Ops [|eval' ops.Ops expr|] ;
-                                     OpStrs = Array.append ops'.OpStrs [|toOpStr ops'.OpStrs.Length|] ;
-                                     OpExprs' = Array.append ops'.OpExprs' [|expr|] ;
-                                     ArityOps = Array.append ops'.ArityOps [|countVars expr|] ;
-                                     Active = Array.append ops'.Active [|true|] } ) ops
-
 let collapse : BoolExpr' [] [] -> BoolExpr' [] -> BoolExpr' [] = fun ops exprs -> 
     let run' : BoolExpr' [] -> BoolExpr' [] = fun exprs -> 
         exprs |> Array.map (function | And' (v, x, y) -> [|And' (v, x, y)|]
@@ -161,6 +150,19 @@ let collapse : BoolExpr' [] [] -> BoolExpr' [] -> BoolExpr' [] = fun ops exprs -
                                      | _ -> failwith "oups")
               |> Array.concat
     fixedPoint (fun exprs -> run' exprs) exprs
+
+
+let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops -> 
+    ([|0..exprs.Length - 1|], exprs)
+    ||> Array.zip
+    |> Array.fold (fun ops' (i, expr) -> 
+                                   { OpExprs = Array.append ops'.OpExprs [|compileToBoolExpr (collapse ops.OpExprs' expr)|] ;
+                                     Ops = Array.append ops'.Ops [|eval' ops.Ops expr|] ;
+                                     OpStrs = Array.append ops'.OpStrs [|toOpStr ops'.OpStrs.Length|] ;
+                                     OpExprs' = Array.append ops'.OpExprs' [|expr|] ;
+                                     ArityOps = Array.append ops'.ArityOps [|countVars expr|] ;
+                                     Active = Array.append ops'.Active [|true|] } ) ops
+
 
 
 let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct -> 
@@ -220,6 +222,7 @@ while enum.MoveNext() do
     ()
 
 
+#time
 
 
 let f : int -> bool = isPowerOfTwo
@@ -234,6 +237,7 @@ let values =
 //let opStruct = updateOps [|falseExpr|] (getOpStruct ())
 let opStruct = (getOpStruct ())
 
+
 setTimeout(120.0)
 let _ = run' numOfVars opStruct isPowerOfTwo 20 1 [|0 .. final - 1|] 
 
@@ -241,6 +245,7 @@ let exprs =
     values
     |> Array.mapi (fun i n -> 
             let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) 3 1 1 (fun () -> getSample f [|0 .. final - 1|] final)
+            //let (result, expr') = run' numOfVars opStruct (equalTo n) 3 1 [|0 .. final - 1|]
             (i + 1, expr'))
 
 
@@ -248,6 +253,7 @@ let opStruct' =
     Array.fold (fun opStruct' (n, expr) -> 
                     let opStruct' = updateOps [|expr|] opStruct'
                     let (result, _,  _, _, _, _, _, expr') = run numOfVars opStruct' (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 5 1 1 (fun () -> getSample f [|0 .. final - 1|] final)
+                    //let (result, expr') = run' numOfVars opStruct' (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 5 1 [|0 .. final - 1|]
                     if result <> final then
                         failwith "oups"
                     for i = opStruct.Ops.Length to opStruct'.Ops.Length - 1 do
@@ -260,11 +266,9 @@ let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 
 
-#time
-
 
 randomSubExprs 10 [|expr'|] |> Seq.map Array.length
-let rndExpr = rndBoolExpr expr' |> take' 10 |> Seq.toArray 
+let rndExpr = rndBoolExpr expr' |> take' 20 |> Seq.toArray 
 rndExpr |> getLeafVars
 rndExpr |> updateVars |> getLeafVars
 
