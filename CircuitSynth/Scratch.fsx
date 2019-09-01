@@ -222,6 +222,28 @@ while enum.MoveNext() do
     ()
 
 
+
+
+let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
+    let lookupMap = exprs |> toMapBoolExpr
+    let rec run : string -> BoolExpr' [] = fun name ->
+        match Array.tryFind (fun (key, _) -> key = name) lookupMap with
+        | Some (_, expr) -> 
+            match expr with
+            | And' (v, x, y) -> 
+                Array.append [|And' (v, x, y)|] ([|x; y|] |> Array.map run |> Array.concat)
+            | Or' (v, x, y) -> 
+                Array.append [|Or' (v, x, y)|] ([|x; y|] |> Array.map run |> Array.concat)
+            | Not' (v, x) ->
+                Array.append [|Not' (v, x)|] (run x) 
+            | Func' (v, args, iop) -> 
+                Array.append [|Func' (v, args, iop)|] (args |> Array.map run |> Array.concat)
+            | _ -> failwith "oups"
+        | None when name.StartsWith("x") -> [||]
+        | None -> failwithf "not found %s" name
+    run (getVarBoolExpr' exprs.[0]) |> Array.distinct
+
+
 #time
 
 
@@ -264,10 +286,10 @@ let opStruct' =
 
 let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
+expr'.Length
 
-
-let rndExpr = rndBoolExpr expr' |> take' 20 |> Seq.toArray 
-rndExpr |> getLeafVars
+let rndExpr = rndBoolExpr expr' |> take' 100 |> Seq.toArray 
+rndExpr |> getLeafVars |> Array.length
 rndExpr.Length
 let freshRndExpr = rndExpr |> updateVars
 
@@ -279,8 +301,8 @@ verify numOfVars (fun i -> let g = eval' [||] freshRndExpr in g (toBits' numOfVa
 
 
 let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
-let expr'' = replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr'
-
+let expr'' = cleanupBoolExpr' (replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr')
+expr''.Length
 
 verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))

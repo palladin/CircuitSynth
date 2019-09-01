@@ -267,9 +267,3 @@ let replaceBoolExpr' : string -> BoolExpr' [] -> BoolExpr' [] -> BoolExpr' [] = 
         exprs |> Array.filter (fun expr -> getVarBoolExpr' expr <> var)
     let with' = Array.append [|updateVarBoolExpr' with'.[0] var|] (Array.tail with')
     Array.append exprs' with'
-
-
-
-
-
-
