@@ -262,6 +262,13 @@ let subs : string [] -> BoolExpr' [] -> BoolExpr' [] = fun args exprs ->
                                  | Func' (v, args, iop) -> Func' (g v, args |> Array.map f, iop)
                                  | _ -> failwith "oups")
 
+let replaceBoolExpr' : string -> BoolExpr' [] -> BoolExpr' [] -> BoolExpr' [] = fun var with' exprs ->  
+    let exprs' = 
+        exprs |> Array.filter (fun expr -> getVarBoolExpr' expr <> var)
+    let with' = Array.append [|updateVarBoolExpr' with'.[0] var|] (Array.tail with')
+    Array.append exprs' with'
+
+
 
 
 

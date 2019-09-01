@@ -238,8 +238,8 @@ let values =
 let opStruct = (getOpStruct ())
 
 
-setTimeout(120.0)
-let _ = run' numOfVars opStruct isPowerOfTwo 20 1 [|0 .. final - 1|] 
+//setTimeout(120.0)
+//let _ = run' numOfVars opStruct isPowerOfTwo 20 1 [|0 .. final - 1|] 
 
 let exprs = 
     values
@@ -266,24 +266,35 @@ let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 
 
-
-randomSubExprs 10 [|expr'|] |> Seq.map Array.length
 let rndExpr = rndBoolExpr expr' |> take' 20 |> Seq.toArray 
 rndExpr |> getLeafVars
-rndExpr |> updateVars |> getLeafVars
+rndExpr.Length
+let freshRndExpr = rndExpr |> updateVars
+
+let (result, _,  _, _, _, _, _, newExpr) = 
+    run numOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' numOfVars i)) 5 1 1 (fun () -> [|0 .. final - 1|])
+    
+verify numOfVars (fun i -> let g = eval' [||] freshRndExpr in g (toBits' numOfVars i))
+                 (fun i -> let g = eval' [||] newExpr in g (toBits' numOfVars i))
+
+
+let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
+let expr'' = replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr'
 
 
 verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
 
 verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
-                 (fun i -> let g = eval' opStruct'.Ops expr' in g (toBits' numOfVars i))
+                 (fun i -> let g = eval' [||] expr' in g (toBits' numOfVars i))
 
+verify numOfVars (fun i -> let g = eval' [||] expr'  in g (toBits' numOfVars i))
+                 (fun i -> let g = eval' [||] expr'' in g (toBits' numOfVars i))
 
 
 writeTruthTable "tt.csv" 8 [|0..255|] xors
 
 
-setTimeout(120.0)
-let (_, _,  _, _, _, _, _, expr'') = run numOfVars opStruct isPowerOfTwo 20 23 1 (fun () -> [|0 .. final - 1|])
+//setTimeout(120.0)
+//let (_, _,  _, _, _, _, _, expr'') = run numOfVars opStruct isPowerOfTwo 20 23 1 (fun () -> [|0 .. final - 1|])
 
