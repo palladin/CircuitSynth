@@ -261,9 +261,13 @@ let toFuncBoolExpr : int -> int [] -> (int -> bool) -> (BoolExpr[] -> BoolExpr) 
 
 let verify : int -> (int -> bool) -> (int -> bool) -> int = fun numOfVars f g ->
     let final = int (2.0 ** (float numOfVars))
-    [|0..(final - 1)|] 
-    |> Array.filter (fun i -> f i = g i)
-    |> Array.length
+    let result =
+        [|0..(final - 1)|] 
+        |> Array.filter (fun i -> f i = g i)
+        |> Array.length
+    if final = result then
+        result
+    else failwithf "%d - %d" final result
 
 
 

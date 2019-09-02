@@ -29,22 +29,39 @@ let (|SeqEmpty|SeqCons|) xs =
 
 let merge : seq<'a> -> seq<'a> -> seq<'a> = 
     fun xs ys -> 
-        let rec run' : IEnumerator<'a> -> IEnumerator<'a> -> seq<'a> = fun xs ys ->
+        let qxs = new Queue<'a>()
+        let qys = new Queue<'a>()
+        let xs = xs.GetEnumerator() 
+        let ys = ys.GetEnumerator()
+        let rec run' : unit -> seq<'a> = fun () ->
             seq {
-              match xs.MoveNext(), ys.MoveNext() with
-              | true, true -> 
-                yield xs.Current
-                yield ys.Current
-                yield! run' xs ys
+              let bit = rand.Next() % 2 = 0
+              let _ = 
+                  match xs.MoveNext(), ys.MoveNext() with
+                  | true, true -> 
+                    qxs.Enqueue(xs.Current)
+                    qys.Enqueue(ys.Current)
+                  | true, false -> 
+                      qxs.Enqueue(xs.Current)
+                  | false, true -> 
+                    qys.Enqueue(ys.Current)
+                  | false, false -> ()
+              match qxs.Count <> 0, qys.Count <> 0 with
+              | true, true ->
+                if bit then 
+                    yield qxs.Dequeue()
+                else
+                    yield qys.Dequeue()
+                yield! run' ()
               | true, false -> 
-                  yield xs.Current
-                  yield! run' xs ys
-              | false, true -> 
-                yield ys.Current
-                yield! run' xs ys
+                yield qxs.Dequeue()
+                yield! run' ()
+              | false, true ->
+                yield qys.Dequeue()
+                yield! run' ()
               | false, false -> ()
             }
-        run' (xs.GetEnumerator()) (ys.GetEnumerator())
+        run' ()
 
 
 let merge' : seq<seq<'a>> -> seq<'a> = 
