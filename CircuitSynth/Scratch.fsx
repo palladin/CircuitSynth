@@ -111,7 +111,7 @@ let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct ->
     }
 
 let randomSubExprs : BoolExpr' [] [] -> seq<BoolExpr' []> = fun exprs -> 
-    seq { for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr expr |> take' (rand.Next(1, exprs.Length + 1)) |> Seq.toArray) [||]) }
+    seq { for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr expr |> take' (rand.Next(1, expr.Length + 1)) |> Seq.toArray) [||]) }
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.distinct
@@ -288,7 +288,12 @@ let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 expr'.Length
 
-let rndExpr = rndBoolExpr expr' |> take' 100 |> Seq.toArray 
+let rndExpr = randomSubExprs [|expr'|] 
+              |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
+              |> take' 1 
+              |> Seq.head 
+
+
 rndExpr |> getLeafVars |> Array.length
 rndExpr.Length
 let freshRndExpr = rndExpr |> updateVars
@@ -296,6 +301,8 @@ let freshRndExpr = rndExpr |> updateVars
 let (result, _,  _, _, _, _, _, newExpr) = 
     run numOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' numOfVars i)) 5 1 1 (fun () -> [|0 .. final - 1|])
     
+newExpr.Length
+
 verify numOfVars (fun i -> let g = eval' [||] freshRndExpr in g (toBits' numOfVars i))
                  (fun i -> let g = eval' [||] newExpr in g (toBits' numOfVars i))
 

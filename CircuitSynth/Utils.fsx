@@ -75,7 +75,9 @@ let tryWith : (unit -> 'T) -> 'T -> 'T = fun f e ->
     try
         f ()
     with
-    | _ -> e
+    | ex ->
+        printfn "tryWith: %s" ex.Message
+        e
 
 
 let rec split : int -> seq<int * int> = fun n -> 
