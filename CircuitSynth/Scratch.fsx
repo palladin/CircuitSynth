@@ -1,4 +1,4 @@
-﻿#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
+﻿//#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
 #load "Init.fsx"
 #load "Utils.fsx"
 #load "CoreTypes.fsx"
@@ -110,8 +110,8 @@ let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct ->
             yield (result, expr)
     }
 
-let randomSubExprs : int -> BoolExpr' [] [] -> seq<BoolExpr' []> = fun n exprs -> 
-    seq { for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr expr |> take' n |> Seq.toArray) [||]) }
+let randomSubExprs : BoolExpr' [] [] -> seq<BoolExpr' []> = fun exprs -> 
+    seq { for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr expr |> take' (rand.Next(1, exprs.Length + 1)) |> Seq.toArray) [||]) }
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.distinct
@@ -176,7 +176,7 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         printfn "%A" results
         let exprs = results |> Array.map snd 
         yield ()
-        let exprs' = randomSubExprs 10 exprs |> Seq.take 10 |> Seq.toArray
+        let exprs' = randomSubExprs exprs |> Seq.take 10 |> Seq.toArray
         printfn "%A" exprs'
         yield ()
         let matches' = matches opStruct exprs'
