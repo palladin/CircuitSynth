@@ -79,7 +79,13 @@ let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> =
                 | Some (_, expr) ->
                     match expr with
                     | And' (v, x, y) | Or' (v, x, y) as expr -> 
-                        seq { yield expr; yield! [|x; y|] |> randomize |> Seq.filter (fun _ -> true) |> Seq.map rndBoolExpr' |> merge' } 
+                        seq { yield expr; yield! [|x; y|] 
+                                                 |> Array.filter (fun v -> if v.StartsWith("x") then true 
+                                                                           else countRefs v exprs = 1) 
+                                                 |> randomize 
+                                                 |> Seq.filter (fun _ -> true) 
+                                                 |> Seq.map rndBoolExpr' 
+                                                 |> merge' } 
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
@@ -288,8 +294,10 @@ let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 expr'.Length
 
+
 let rndExpr = randomSubExprs [|expr'|] 
               |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
+              |> Seq.filter (fun expr -> (expr |> Array.length) >= 10)
               |> take' 1 
               |> Seq.head 
 
@@ -321,7 +329,7 @@ verify numOfVars (fun i -> let g = eval' [||] expr'  in g (toBits' numOfVars i))
                  (fun i -> let g = eval' [||] expr'' in g (toBits' numOfVars i))
 
 
-writeTruthTable "tt.csv" 8 [|0..255|] xors
+writeTruthTable @"c:\downloads\tt.csv" numOfVars [|0 .. final - 1|] isPowerOfTwo
 
 
 //setTimeout(120.0)

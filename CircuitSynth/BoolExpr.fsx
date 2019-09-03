@@ -56,6 +56,16 @@ let countVars : BoolExpr' [] -> int = fun exprs ->
           |> Array.distinct
           |> Array.length
 
+let countRefs : string -> BoolExpr' [] -> int = fun name exprs ->
+    exprs |> Array.map (function | And' (v, x, y) -> [|x; y|]
+                                 | Or' (v, x, y) -> [|x; y|]
+                                 | Not' (v, x) -> [|x|]
+                                 | Func' (v, args, _) -> args
+                                 | _ -> failwith "oups")
+          |> Array.concat
+          |> Array.filter (fun v -> v = name)
+          |> Array.length
+
 
 let toBoolExpr' : BoolExpr -> BoolExpr' []  = fun expr ->
 
@@ -263,7 +273,10 @@ let subs : string [] -> BoolExpr' [] -> BoolExpr' [] = fun args exprs ->
                                  | _ -> failwith "oups")
 
 let replaceBoolExpr' : string -> BoolExpr' [] -> BoolExpr' [] -> BoolExpr' [] = fun var with' exprs ->  
-    let exprs' = 
-        exprs |> Array.filter (fun expr -> getVarBoolExpr' expr <> var)
-    let with' = Array.append [|updateVarBoolExpr' with'.[0] var|] (Array.tail with')
-    Array.append exprs' with'
+    let exprs = exprs |> Array.map id
+    for i = 0 to exprs.Length - 1 do
+        let expr = exprs.[i]
+        if getVarBoolExpr' expr = var then
+            exprs.[i] <- updateVarBoolExpr' with'.[0] var
+        
+    Array.append exprs (Array.tail with')
