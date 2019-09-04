@@ -83,14 +83,16 @@ let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> =
                                                  |> Array.filter (fun v -> if v.StartsWith("x") then true 
                                                                            else countRefs v exprs = 1) 
                                                  |> randomize 
-                                                 |> Seq.filter (fun _ -> true) 
                                                  |> Seq.map rndBoolExpr' 
                                                  |> merge' } 
                     | Not' (v, x) as expr -> 
-                        seq { yield expr; yield! [|x|] |> Seq.collect rndBoolExpr'  } 
+                        seq { yield expr; yield! [|x|] 
+                                                 |> Seq.filter (fun v -> if v.StartsWith("x") then true 
+                                                                         else countRefs v exprs = 1) 
+                                                 |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
                     | Func' (v, args, iops) ->
-                        seq { yield expr; yield! args |> randomize |> Seq.filter (fun _ -> true) |> Seq.map rndBoolExpr' |> merge' } 
+                        seq { yield expr; yield! args |> randomize |> Seq.map rndBoolExpr' |> merge' } 
         rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) 
 
 let baseSample : (int -> bool) -> unit -> int [] = fun f () -> 
@@ -302,7 +304,7 @@ verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOf
 
 let rec minimize : int -> BoolExpr' [] -> seq<BoolExpr' []> = fun n expr ->
     seq {
-        setTimeout(120.0)
+        setTimeout(20.0)
         if n = 0 then ()
         else
             printfn "n: %d" n
@@ -348,6 +350,8 @@ let rec minimize : int -> BoolExpr' [] -> seq<BoolExpr' []> = fun n expr ->
     }
 
 let enum = (minimize 200 expr').GetEnumerator()
+
+enum.MoveNext()
 
 while enum.MoveNext() do
     ()
