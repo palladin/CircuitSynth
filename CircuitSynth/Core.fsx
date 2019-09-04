@@ -444,7 +444,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                 //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
                 let sample = !baseSample |> Seq.take !posRef |> Seq.toArray 
-                printfn "Sample: %A" sample
+                //printfn "Sample: %A" sample
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample
                 let flag = ref false
@@ -456,7 +456,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                             stats.[i] <- stats.[i] + 1
                     notFound := [|0..final - 1|] 
                                 |> Array.filter (fun i -> f <| toBits' numOfVars i <> verify i)
-                    printfn "notFound: %A" !notFound
+                    //printfn "notFound: %A" !notFound
                     let sampleFound = sample |> Array.filter (fun i -> f <| toBits' numOfVars i = verify i) 
                     flag := sampleFound.Length = sample.Length
                 if !flag then
@@ -478,7 +478,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                                 watch.Start()
                                 let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample  [|0..final - 1|] arityOfOps numOfInstrs
                                 watch.Stop()
-                                printfn "%d %d %A %A %A" sample.Length numOfInstrs availableOpExprs (status, result) watch.Elapsed
+                                //printfn "%d %d %A %A %A" sample.Length numOfInstrs availableOpExprs (status, result) watch.Elapsed
                                 yield (numOfInstrs, status, result, instrs', watch.Elapsed)
                         }
                         |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
@@ -487,23 +487,23 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                         |> Seq.tryHead
                     match result with
                     | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when result = final -> 
-                        printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                        //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                         (Status.SATISFIABLE, result, instrs', elapsed, sample)
                     | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when !posRef = (!baseSample).Length -> 
-                        printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                        //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                         run' numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
                     | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) ->
-                        printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                        //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                         incr posRef
                         run' numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
                     | None ->
                         if old.Length = 0 then failwith "UNKNOWN"
                         let (status, result, instrs', elapsed) = old.[0]
-                        printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                        //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                         (status, result, instrs', elapsed, sample)
                     | _ -> failwith "oups"
         let (status, result, instrs', elapsed, sample) = run' numOfInstrsIndex [||]
-        printfn "%A %A" (status, result) elapsed
+        //printfn "%A %A" (status, result) elapsed
 
         let opExpr = compileInstrs' opExprs arityOfOps instrs' 
         let expr' = compileInstrsToBoolExprs arityOfOps instrs'

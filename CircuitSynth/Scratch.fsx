@@ -302,8 +302,10 @@ verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOf
 
 let rec minimize : int -> BoolExpr' [] -> seq<BoolExpr' []> = fun n expr ->
     seq {
+        setTimeout(120.0)
         if n = 0 then ()
         else
+            printfn "n: %d" n
             printfn "expr: %d" expr.Length
 
             let rndExpr = randomSubExprs [|expr|] 
@@ -324,26 +326,31 @@ let rec minimize : int -> BoolExpr' [] -> seq<BoolExpr' []> = fun n expr ->
 
             printfn "newExpr: %d" newExpr.Length
             yield [||]
-            let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
-            let expr' = cleanupBoolExpr' (replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr')
 
-            let _ =
-                verify numOfVars (fun i -> let g = eval' [||] expr  in g (toBits' numOfVars i))
-                                 (fun i -> let g = eval' [||] expr' in g (toBits' numOfVars i))
-
-            printfn "expr': %d" expr'.Length
-
-            yield [||]
-
-            if expr'.Length < expr.Length then
-                yield! minimize (n - 1) expr'
-            else
+            if newExpr.Length >= rndExpr.Length then
                 yield! minimize (n - 1) expr
+            else
+                let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
+                let expr' = cleanupBoolExpr' (replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr)
+
+                let _ =
+                    verify numOfVars (fun i -> let g = eval' [||] expr  in g (toBits' numOfVars i))
+                                     (fun i -> let g = eval' [||] expr' in g (toBits' numOfVars i))
+
+                printfn "expr': %d" expr'.Length
+
+                yield [||]
+
+                if expr'.Length < expr.Length then
+                    yield! minimize (n - 1) expr'
+                else
+                    yield! minimize (n - 1) expr
     }
 
-let enum = (minimize 2 expr').GetEnumerator()
+let enum = (minimize 200 expr').GetEnumerator()
 
-enum.MoveNext()
+while enum.MoveNext() do
+    ()
 
 
 writeTruthTable @"c:\downloads\tt.csv" numOfVars [|0 .. final - 1|] isPowerOfTwo
