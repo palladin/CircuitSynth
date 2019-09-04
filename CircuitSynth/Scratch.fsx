@@ -72,6 +72,8 @@ let equalTo n = (fun i -> i = n)
 let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> = 
     fun exprs ->
         let lookupMap = exprs |> toMapBoolExpr
+        let rootExpr = exprs.[rand.Next(0, exprs.Length)]
+        let rootExprs = getBoolExpr' rootExpr exprs
         let rec rndBoolExpr' : string -> seq<BoolExpr'> = 
             fun name ->
                 match Array.tryFind (fun (key, _) -> key = name) lookupMap with
@@ -93,7 +95,7 @@ let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> =
                     | Var' (v, x) as expr -> failwith "oups"
                     | Func' (v, args, iops) ->
                         seq { yield expr; yield! args |> randomize |> Seq.map rndBoolExpr' |> merge' } 
-        rndBoolExpr' (getVarBoolExpr' exprs.[rand.Next(0, exprs.Length)]) 
+        rndBoolExpr' (getVarBoolExpr' rootExpr) 
 
 let baseSample : (int -> bool) -> unit -> int [] = fun f () -> 
     let sample = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
@@ -295,6 +297,7 @@ let opStruct' =
 let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 expr'.Length
+
 
 verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
