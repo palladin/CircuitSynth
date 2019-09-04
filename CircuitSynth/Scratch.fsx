@@ -218,14 +218,14 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         yield! exec (i + 1) f opStruct' 
     }
 
-let enum = (exec 1 isPowerOfTwo <| getOpStruct ()).GetEnumerator()
+//let enum = (exec 1 isPowerOfTwo <| getOpStruct ()).GetEnumerator()
 
 
-enum.MoveNext()
+//enum.MoveNext()
 
 
-while enum.MoveNext() do
-    ()
+//while enum.MoveNext() do
+//    ()
 
 
 
@@ -294,39 +294,56 @@ let expr = opStruct'.OpExprs'.[opStruct'.OpExprs'.Length - 1]
 let expr' = collapse opStruct'.OpExprs' expr
 expr'.Length
 
-
-let rndExpr = randomSubExprs [|expr'|] 
-              |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
-              |> Seq.filter (fun expr -> (expr |> Array.length) >= 10)
-              |> take' 1 
-              |> Seq.head 
-
-
-rndExpr |> getLeafVars |> Array.length
-rndExpr.Length
-let freshRndExpr = rndExpr |> updateVars
-
-let (result, _,  _, _, _, _, _, newExpr) = 
-    run numOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' numOfVars i)) 5 1 1 (fun () -> [|0 .. final - 1|])
-    
-newExpr.Length
-
-verify numOfVars (fun i -> let g = eval' [||] freshRndExpr in g (toBits' numOfVars i))
-                 (fun i -> let g = eval' [||] newExpr in g (toBits' numOfVars i))
-
-
-let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
-let expr'' = cleanupBoolExpr' (replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr')
-expr''.Length
-
 verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
 
 verify numOfVars (fun i -> let g = eval' opStruct'.Ops expr  in g (toBits' numOfVars i))
                  (fun i -> let g = eval' [||] expr' in g (toBits' numOfVars i))
 
-verify numOfVars (fun i -> let g = eval' [||] expr'  in g (toBits' numOfVars i))
-                 (fun i -> let g = eval' [||] expr'' in g (toBits' numOfVars i))
+let rec minimize : int -> BoolExpr' [] -> seq<BoolExpr' []> = fun n expr ->
+    seq {
+        if n = 0 then ()
+        else
+            printfn "expr: %d" expr.Length
+
+            let rndExpr = randomSubExprs [|expr|] 
+                          |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
+                          //|> Seq.filter (fun expr -> (expr |> Array.length) >= 20)
+                          |> take' 1 
+                          |> Seq.head
+            printfn "rndExpr: %d" rndExpr.Length
+            yield [||] 
+
+            let freshRndExpr = rndExpr |> updateVars
+            let (result, _,  _, _, _, _, _, newExpr) = 
+                run numOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' numOfVars i)) 5 1 1 (fun () -> [|0 .. final - 1|])
+
+            let _ = 
+                verify numOfVars (fun i -> let g = eval' [||] freshRndExpr in g (toBits' numOfVars i))
+                                 (fun i -> let g = eval' [||] newExpr in g (toBits' numOfVars i))
+
+            printfn "newExpr: %d" newExpr.Length
+            yield [||]
+            let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
+            let expr' = cleanupBoolExpr' (replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr')
+
+            let _ =
+                verify numOfVars (fun i -> let g = eval' [||] expr  in g (toBits' numOfVars i))
+                                 (fun i -> let g = eval' [||] expr' in g (toBits' numOfVars i))
+
+            printfn "expr': %d" expr'.Length
+
+            yield [||]
+
+            if expr'.Length < expr.Length then
+                yield! minimize (n - 1) expr'
+            else
+                yield! minimize (n - 1) expr
+    }
+
+let enum = (minimize 2 expr').GetEnumerator()
+
+enum.MoveNext()
 
 
 writeTruthTable @"c:\downloads\tt.csv" numOfVars [|0 .. final - 1|] isPowerOfTwo
