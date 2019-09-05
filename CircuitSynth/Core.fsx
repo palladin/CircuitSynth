@@ -503,7 +503,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                         (status, result, instrs', elapsed, sample)
                     | _ -> failwith "oups"
         let (status, result, instrs', elapsed, sample) = run' numOfInstrsIndex [||]
-        //printfn "%A %A" (status, result) elapsed
+        printfn "%A %A" (status, result) elapsed
 
         let opExpr = compileInstrs' opExprs arityOfOps instrs' 
         let expr' = compileInstrsToBoolExprs arityOfOps instrs'

@@ -295,6 +295,7 @@ verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' [||] expr in g (toBits' numOfVars i))
 
 
+
 let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVars n expr ->
     seq {
         setTimeout(20.0)
@@ -314,6 +315,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
             let rndExprNumOfVars = rndExpr |> getLeafVars |> Array.length
             let rndFinal = int (2.0 ** (float rndExprNumOfVars))
             printfn "rndExpr vars: %d" rndExprNumOfVars
+            printfn "rndExpr vars: %A" (rndExpr |> getLeafVars)
             printfn "rndExpr: %d" rndExpr.Length
             yield expr
 
