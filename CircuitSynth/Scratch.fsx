@@ -62,7 +62,7 @@ let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
 let numOfSamples = 1
 let numOfVars = 6
-let final = int (2.0 ** (float numOfVars))
+let final = twoPower numOfVars
 
 let xors = (fun i -> xors <| toBits' numOfVars i)
 let isEven = (fun i -> i % 2 = 0)
@@ -273,6 +273,9 @@ let opStruct = (getOpStruct ())
 //setTimeout(120.0)
 //let _ = run' numOfVars opStruct isPowerOfTwo 20 1 [|0 .. final - 1|] 
 
+setTimeout(120.0)
+run' 10 opStruct isEven 1 [|0 .. (twoPower 10) - 1|]
+
 let exprs = 
     values
     |> Array.mapi (fun i n -> 
@@ -280,7 +283,7 @@ let exprs =
             //let (result, expr') = run' numOfVars opStruct (equalTo n) 3 1 [|0 .. final - 1|]
             expr')
 
-
+matches opStruct exprs
 
 let expr =
     Array.reduce (fun (expr : BoolExpr' []) (expr' : BoolExpr' []) ->  
@@ -309,7 +312,7 @@ let rec rndShuffle : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOf
                           |> Seq.head
 
             let rndExprNumOfVars = rndExpr |> getLeafVars |> Array.length
-            let rndFinal = int (2.0 ** (float rndExprNumOfVars))
+            let rndFinal = twoPower rndExprNumOfVars
             printfn "rndShuffle rndExpr: %d" rndExpr.Length
 
             let freshRndExpr = rndExpr |> updateVars
@@ -363,7 +366,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
                           |> Seq.head
 
             let rndExprNumOfVars = rndExpr |> getLeafVars |> Array.length
-            let rndFinal = int (2.0 ** (float rndExprNumOfVars))
+            let rndFinal = twoPower rndExprNumOfVars
             printfn "rndExpr vars: %d" rndExprNumOfVars
             printfn "rndExpr vars: %A" (rndExpr |> getLeafVars)
             printfn "rndExpr: %d" rndExpr.Length
@@ -408,6 +411,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
     }
 
 let expr' = rndShuffle numOfVars 200 expr |> Seq.last
+
 let enum = (minimize numOfVars 200 expr').GetEnumerator()
 
 enum.MoveNext()

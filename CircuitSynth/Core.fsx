@@ -308,9 +308,9 @@ let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') =
             |> Array.filter (fun (_, b) -> b)
             |> Array.map (fun (i, _) -> i)
 
-        let varBitSize = 3
+        let varBitSize = 8
         let instrBitSize = 8
-        let opBitSize = 5
+        let opBitSize = 8
         let numOfOps = availableOpExprs.Length
         let verify' = toFuncBoolExpr numOfVars testData verify
         

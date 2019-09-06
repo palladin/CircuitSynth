@@ -110,3 +110,5 @@ let fixedPoint f initial =
     |> Seq.pairwise 
     |> Seq.pick (fun (first, second) -> 
         if first = second then Some first else None)
+
+let twoPower : int -> int = fun n -> int (2.0 ** (float n))
