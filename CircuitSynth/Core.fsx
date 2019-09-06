@@ -335,7 +335,7 @@ let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') =
             let model = solver.Model
             let instrs' = toInstrs' model instrs
 
-            printfn "%s" (strInstrs opStrs arityOfOps instrs')
+            //printfn "%s" (strInstrs opStrs arityOfOps instrs')
             let flag = 
                 testData 
                 |> Array.map (fun i -> verify i = evalInstrs' ops instrs' (toBits' numOfVars i) )
@@ -353,7 +353,7 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
            (int -> bool) ->
            int [] -> int [] -> int [] -> int -> (Status * int * Instrs') = 
     fun numOfVars opExprs ops opStrs availableOpExprs verify sample test arityOfOps numOfInstrs ->
-        let varBitSize = 3
+        let varBitSize = 5
         let instrBitSize = 8
         let opBitSize = 5
         let numOfOps = availableOpExprs.Length
@@ -478,7 +478,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
                                 watch.Start()
                                 let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample  [|0..final - 1|] arityOfOps numOfInstrs
                                 watch.Stop()
-                                //printfn "%d %d %A %A %A" sample.Length numOfInstrs availableOpExprs (status, result) watch.Elapsed
+                                printfn "%d %d %A %A %A" sample.Length numOfInstrs availableOpExprs (status, result) watch.Elapsed
                                 yield (numOfInstrs, status, result, instrs', watch.Elapsed)
                         }
                         |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
@@ -515,26 +515,28 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
         (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', expr')
 
 
-let rec run' : int -> Ops -> (int -> bool) -> int -> int -> int [] -> (int * BoolExpr' []) = 
-    fun numOfVars opStruct verify numOfTries numOfInstrsIndex testData ->
-        let watch = new Stopwatch()
-        watch.Start()
+let run' : int -> Ops -> (int -> bool) -> int -> int [] -> (int * BoolExpr' []) = 
+    fun numOfVars opStruct verify numOfInstrs testData ->
         let availableOpExprs = 
-            opStruct.Active 
-            |> Array.mapi (fun i b -> (i, b))
-            |> Array.filter (fun (_, b) -> b)
-            |> Array.map (fun (i, _) -> i)
-        let (status, instrs') = find' numOfVars opStruct verify testData  numOfInstrsIndex
-        watch.Stop()
-        printfn "%d %A %A %A" numOfInstrsIndex availableOpExprs status watch.Elapsed
-        match status with
-        | Status.SATISFIABLE -> 
-            let expr' = compileInstrsToBoolExprs opStruct.ArityOps instrs'
-            (testData.Length, expr')
-        | Status.UNSATISFIABLE -> 
-            run' numOfVars opStruct verify numOfTries (numOfInstrsIndex + 1) testData
-        | Status.UNKNOWN when numOfTries = 0 ->
-            (0, [||])
-        | Status.UNKNOWN -> 
-            run' numOfVars opStruct verify (numOfTries - 1) (numOfInstrsIndex + 1) testData
-        | _ -> failwith "oups"
+                opStruct.Active 
+                |> Array.mapi (fun i b -> (i, b))
+                |> Array.filter (fun (_, b) -> b)
+                |> Array.map (fun (i, _) -> i)
+        let rec run'' : int -> (int * BoolExpr' []) = fun numOfInstrsIndex -> 
+            let watch = new Stopwatch()
+            watch.Start()
+            let (status, instrs') = find' numOfVars opStruct verify testData numOfInstrsIndex
+            watch.Stop()
+            printfn "%d %A %A %A" numOfInstrsIndex availableOpExprs status watch.Elapsed
+            match status with
+            | Status.SATISFIABLE -> 
+                let expr' = compileInstrsToBoolExprs opStruct.ArityOps instrs'
+                (testData.Length, expr')
+            | Status.UNSATISFIABLE -> 
+                run'' (numOfInstrsIndex + 1) 
+            | Status.UNKNOWN when numOfInstrsIndex = numOfInstrs -> 
+                (0, [||])
+            | Status.UNKNOWN -> 
+                run'' (numOfInstrsIndex + 1) 
+            | _ -> failwith "oups"
+        run'' 1

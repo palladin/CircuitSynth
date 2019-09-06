@@ -121,7 +121,7 @@ let ranges : (int -> bool) -> Ops -> seq<int * BoolExpr' []> = fun f opStruct ->
     }
 
 let randomSubExprs : BoolExpr' [] [] -> seq<BoolExpr' []> = fun exprs -> 
-    seq { for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr expr |> take' (rand.Next(1, expr.Length + 1)) |> Seq.toArray) [||]) }
+    seq { for expr in exprs  do yield Seq.initInfinite id |> Seq.map (fun _ -> tryWith (fun () -> rndBoolExpr expr |> Seq.distinct |> take' (rand.Next(1, expr.Length + 1)) |> Seq.toArray) [||]) }
     |> Seq.concat
     |> Seq.filter (fun expr -> expr.Length > 1)
     |> Seq.distinct
@@ -294,6 +294,56 @@ expr.Length
 verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
                  (fun i -> let g = eval' [||] expr in g (toBits' numOfVars i))
 
+let rec rndShuffle : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVars n expr ->
+    seq {
+        setTimeout(20.0)
+        if n = 0 then 
+            yield expr
+        else
+            printfn "rndShuffle n: %d" n
+            printfn "rndShuffle expr: %d" expr.Length
+
+            let rndExpr = randomSubExprs [|expr|] 
+                          |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
+                          |> Seq.filter (fun expr -> expr.Length <= 4)
+                          |> Seq.head
+
+            let rndExprNumOfVars = rndExpr |> getLeafVars |> Array.length
+            let rndFinal = int (2.0 ** (float rndExprNumOfVars))
+            printfn "rndShuffle rndExpr: %d" rndExpr.Length
+
+            let freshRndExpr = rndExpr |> updateVars
+            //let (result, _,  _, _, _, _, _, newExpr) = 
+            //    run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
+            let (result, newExpr) = 
+                run' rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) rndExpr.Length [|0 .. rndFinal - 1|]
+            
+            if result <> rndFinal then
+                failwithf "rndShuffle %d - %d" result rndFinal
+            else
+                let _ = 
+                    verify numOfVars (fun i -> let g = eval' [||] freshRndExpr in g (toBits' rndExprNumOfVars i))
+                                     (fun i -> let g = eval' [||] newExpr in g (toBits' rndExprNumOfVars i))
+
+                printfn "rndShuffle newExpr: %d" newExpr.Length
+
+                if newExpr.Length > rndExpr.Length then
+                    yield! rndShuffle numOfVars (n - 1) expr
+                else
+                    let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
+                    let expr' = cleanupBoolExpr' (replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr)
+
+                    let _ =
+                        verify numOfVars (fun i -> let g = eval' [||] expr  in g (toBits' numOfVars i))
+                                         (fun i -> let g = eval' [||] expr' in g (toBits' numOfVars i))
+
+                    printfn "rndShuffle expr': %d" expr'.Length
+
+                    if expr'.Length <= expr.Length then
+                        yield! rndShuffle numOfVars (n - 1) expr'
+                    else
+                        yield! rndShuffle numOfVars (n - 1) expr
+    }
 
 
 let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVars n expr ->
@@ -307,7 +357,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
 
             let rndExpr = randomSubExprs [|expr|] 
                           |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
-                          //|> Seq.filter (fun expr' -> expr'.Length <> expr.Length)
+                          //|> Seq.filter (fun expr -> expr.Length <= 4)
                           //|> take' 1000
                           //|> Seq.sortBy (fun expr -> (-expr.Length, (expr |> getLeafVars |> Array.length)))
                           |> Seq.head
@@ -320,8 +370,11 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
             yield expr
 
             let freshRndExpr = rndExpr |> updateVars
-            let (result, _,  _, _, _, _, _, newExpr) = 
-                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
+            printfn "freshRndExpr: %A" freshRndExpr
+            //let (result, _,  _, _, _, _, _, newExpr) = 
+            //    run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
+            let (result, newExpr) = 
+                run' rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) rndExpr.Length [|0 .. rndFinal - 1|]
             
             if result <> rndFinal then
                 printfn "%d - %d" result rndFinal
@@ -354,12 +407,15 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
                         yield! minimize numOfVars (n - 1) expr
     }
 
-let enum = (minimize numOfVars 1000 expr).GetEnumerator()
+let expr' = rndShuffle numOfVars 200 expr |> Seq.last
+let enum = (minimize numOfVars 200 expr').GetEnumerator()
 
 enum.MoveNext()
 
 while enum.MoveNext() do
     ()
+
+
 
 
 writeTruthTable @"c:\downloads\tt.csv" numOfVars [|0 .. final - 1|] isPowerOfTwo
