@@ -66,6 +66,14 @@ let countRefs : string -> BoolExpr' [] -> int = fun name exprs ->
           |> Array.filter (fun v -> v = name)
           |> Array.length
 
+let getRefs : BoolExpr' [] -> string [] = fun exprs ->
+    exprs |> Array.map (function | And' (v, x, y) -> [|x; y|]
+                                 | Or' (v, x, y) -> [|x; y|]
+                                 | Not' (v, x) -> [|x|]
+                                 | Func' (v, args, _) -> args
+                                 | _ -> failwith "oups")
+          |> Array.concat
+
 
 let toBoolExpr' : BoolExpr -> BoolExpr' []  = fun expr ->
 
@@ -281,21 +289,4 @@ let replaceBoolExpr' : string -> BoolExpr' [] -> BoolExpr' [] -> BoolExpr' [] = 
         
     Array.append exprs (Array.tail with')
 
-let getBoolExpr' : BoolExpr' -> BoolExpr' [] -> BoolExpr' [] = fun root exprs ->
-    let lookupMap = exprs |> toMapBoolExpr
-    let rec run : string -> BoolExpr' [] = fun name ->
-        match Array.tryFind (fun (key, _) -> key = name) lookupMap with
-        | Some (_, expr) -> 
-            match expr with
-            | And' (v, x, y) -> 
-                Array.append [|And' (v, x, y)|] ([|x; y|] |> Array.map run |> Array.concat)
-            | Or' (v, x, y) -> 
-                Array.append [|Or' (v, x, y)|] ([|x; y|] |> Array.map run |> Array.concat)
-            | Not' (v, x) ->
-                Array.append [|Not' (v, x)|] (run x) 
-            | Func' (v, args, iop) -> 
-                Array.append [|Func' (v, args, iop)|] (args |> Array.map run |> Array.concat)
-            | _ -> failwith "oups"
-        | None when name.StartsWith("x") -> [||]
-        | None -> failwithf "not found %s" name
-    run (getVarBoolExpr' root) |> Array.distinct
+

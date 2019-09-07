@@ -1,4 +1,4 @@
-﻿//#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
+﻿#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
 #load "Init.fsx"
 #load "Utils.fsx"
 #load "CoreTypes.fsx"
@@ -69,6 +69,26 @@ let isEven = (fun i -> i % 2 = 0)
 let equalTo n = (fun i -> i = n)
 
 
+let getBoolExpr' : BoolExpr' -> BoolExpr' [] -> BoolExpr' [] = fun root exprs ->
+    let lookupMap = exprs |> toMapBoolExpr
+    let rec run : string -> BoolExpr' [] = fun name ->
+        match Array.tryFind (fun (key, _) -> key = name) lookupMap with
+        | Some (_, expr) -> 
+            match expr with
+            | And' (v, x, y) -> 
+                Array.append [|And' (v, x, y)|] ([|x; y|] |> Array.map run |> Array.concat)
+            | Or' (v, x, y) -> 
+                Array.append [|Or' (v, x, y)|] ([|x; y|] |> Array.map run |> Array.concat)
+            | Not' (v, x) ->
+                Array.append [|Not' (v, x)|] (run x) 
+            | Func' (v, args, iop) -> 
+                Array.append [|Func' (v, args, iop)|] (args |> Array.map run |> Array.concat)
+            | _ -> failwith "oups"
+        | None when name.StartsWith("x") -> [||]
+        | None -> failwithf "not found %s" name
+    run (getVarBoolExpr' root) |> Array.distinct
+
+
 let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> = 
     fun exprs ->
         let lookupMap = exprs |> toMapBoolExpr
@@ -82,15 +102,11 @@ let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> =
                     match expr with
                     | And' (v, x, y) | Or' (v, x, y) as expr -> 
                         seq { yield expr; yield! [|x; y|] 
-                                                 |> Array.filter (fun v -> if v.StartsWith("x") then true 
-                                                                           else countRefs v exprs = countRefs v rootExprs) 
                                                  |> randomize 
                                                  |> Seq.map rndBoolExpr' 
                                                  |> merge' } 
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] 
-                                                 |> Seq.filter (fun v -> if v.StartsWith("x") then true 
-                                                                         else countRefs v exprs = countRefs v rootExprs) 
                                                  |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
                     | Func' (v, args, iops) ->
@@ -254,7 +270,6 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
     run (getVarBoolExpr' exprs.[0]) |> Array.distinct
 
 
-#time
 
 
 let f : int -> bool = isPowerOfTwo
@@ -273,8 +288,6 @@ let opStruct = (getOpStruct ())
 //setTimeout(120.0)
 //let _ = run' numOfVars opStruct isPowerOfTwo 20 1 [|0 .. final - 1|] 
 
-setTimeout(120.0)
-run' 10 opStruct isEven 1 [|0 .. (twoPower 10) - 1|]
 
 let exprs = 
     values
@@ -282,8 +295,6 @@ let exprs =
             let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) 3 1 1 (fun () -> getSample f [|0 .. final - 1|] final)
             //let (result, expr') = run' numOfVars opStruct (equalTo n) 3 1 [|0 .. final - 1|]
             expr')
-
-matches opStruct exprs
 
 let expr =
     Array.reduce (fun (expr : BoolExpr' []) (expr' : BoolExpr' []) ->  
@@ -308,7 +319,7 @@ let rec rndShuffle : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOf
 
             let rndExpr = randomSubExprs [|expr|] 
                           |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
-                          |> Seq.filter (fun expr -> expr.Length <= 4)
+                          |> Seq.filter (fun expr -> expr.Length = 3)
                           |> Seq.head
 
             let rndExprNumOfVars = rndExpr |> getLeafVars |> Array.length
@@ -388,6 +399,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
                                      (fun i -> let g = eval' [||] newExpr in g (toBits' rndExprNumOfVars i))
 
                 printfn "newExpr: %d" newExpr.Length
+                printfn "newExpr: %A" newExpr
                 yield expr
 
                 if newExpr.Length > rndExpr.Length then
