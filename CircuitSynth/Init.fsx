@@ -16,7 +16,7 @@ let setTimeout : float -> unit = fun secs ->
     Microsoft.Z3.Global.SetParameter("timeout", string timeout)
 
 Microsoft.Z3.Global.ToggleWarningMessages(true)
-Microsoft.Z3.Global.SetParameter("parallel.enable", "false")
+Microsoft.Z3.Global.SetParameter("parallel.enable", "true")
 Microsoft.Z3.Global.SetParameter("model_validate", "true")
 setTimeout(20.0)
 Microsoft.Z3.Global.SetParameter("model", "true")
