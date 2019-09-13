@@ -117,10 +117,10 @@ let baseSample : (int -> bool) -> unit -> int [] = fun f () ->
     let sample = randoms 0 (final - 1) |> Seq.distinct |> Seq.take final |> Seq.toArray
     getSample f sample final
 
-let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' []) [] = fun f samplef opStruct -> 
-    [| for i = 1 to 10 do 
-        let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f [||] 5 1 numOfSamples samplef
-        yield (result, expr) |]
+let population : int -> (int -> bool) -> Ops -> (unit -> int[]) -> (int * Instrs' * BoolExpr' []) [] = fun n f opStruct samplef -> 
+    [| for i = 1 to n do 
+        let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f [||] 3 1 numOfSamples samplef
+        yield (result, instrs', expr) |]
 
 let ranges : (int -> bool) -> Ops -> seq<BoolExpr' []> = fun f opStruct -> 
     seq {
@@ -196,25 +196,25 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct -> 
     seq {
-        setTimeout(120.0 * float 1)
+        setTimeout(20.0 * float 1)
 
         //for (result, expr) in ranges f opStruct  do
         //    yield ()
 
-        let exprs = ranges f opStruct |> Seq.toArray
-        printfn "%A" exprs
+        let result = population 10 f opStruct (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
+        printfn "%A" (result |> Array.map (fun (r, _, expr) -> (r, expr)))
         yield ()
-        let exprs' = randomSubExprs exprs |> take' 100 |> Seq.toArray
-        printfn "%A" exprs'
-        yield ()
-        let matches' = matches opStruct exprs'
-        printfn "%A" matches'
-        yield ()
+        //let exprs' = randomSubExprs exprs |> take' 100 |> Seq.toArray
+        //printfn "%A" exprs'
+        //yield ()
+        //let matches' = matches opStruct exprs'
+        //printfn "%A" matches'
+        //yield ()
 
         //for i = 3 to opStruct.Ops.Length - 1 do
             //opStruct.Active.[i] <- false
 
-        let matchedExprs = matches' |> Array.map (fun (_, _, expr) -> expr)
+        //let matchedExprs = matches' |> Array.map (fun (_, _, expr) -> expr)
         
         //let opStruct' = updateOps matchedExprs opStruct
 
@@ -300,7 +300,7 @@ let opStruct' = updateOps [|[|And' ("temp-61136","temp-61137","temp-61139");
                               Not' ("temp-61137","temp-61138");
                               Or' ("temp-61138", "x0", "x1");
                               Or' ("temp-61139", "x2", "x3")|]|] opStruct
-let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 0; Args = [||] }|]
+let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 2; Args = [||] }|]
 let (_, _, _, _, _, _, _, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
                                                              fixedInstrs 3 1 1 (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
 let expr = testExpr |> collapse opStruct'.OpExprs'
