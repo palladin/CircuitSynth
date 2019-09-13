@@ -119,7 +119,7 @@ let baseSample : (int -> bool) -> unit -> int [] = fun f () ->
 
 let population : (int -> bool) -> (unit -> int[]) -> Ops -> (int * BoolExpr' []) [] = fun f samplef opStruct -> 
     [| for i = 1 to 10 do 
-        let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f 5 1 numOfSamples samplef
+        let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f [||] 5 1 numOfSamples samplef
         yield (result, expr) |]
 
 let ranges : (int -> bool) -> Ops -> seq<BoolExpr' []> = fun f opStruct -> 
@@ -132,7 +132,9 @@ let ranges : (int -> bool) -> Ops -> seq<BoolExpr' []> = fun f opStruct ->
         printfn "Values: %A" values
         for n = 1 to values.Length do
             let (result, pos, _, _, _, _, instrs', expr) = 
-                run numOfVars opStruct (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 3 1 1 (fun () -> [|0  .. final - 1|])
+                run numOfVars opStruct 
+                    (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 
+                    [||] 3 1 1 (fun () -> [|0  .. final - 1|])
             if result = final then
                 yield expr
     }
@@ -267,12 +269,12 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 
 
 
-let f : int -> bool = isPowerOfTwo
+let f : int -> bool = isEven
 
 let values = 
     [|0 .. final - 1|]
     |> Array.filter f
-    //|> Array.take 4
+    //|> Array.take 2
 
 let opStruct = (getOpStruct ())
 
@@ -289,16 +291,18 @@ let opStruct = (getOpStruct ())
 let exprs = 
     values
     |> Array.mapi (fun i n -> 
-            let (_, _,  _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) 3 1 1 (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
+            let (_, _, _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) [||] 3 1 1 (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
             //let (result, expr') = run' numOfVars opStruct (equalTo n) 3 1 [|0 .. final - 1|]
             expr')
 
-setTimeout(160.0)
+setTimeout(20.0)
 let opStruct' = updateOps [|[|And' ("temp-61136","temp-61137","temp-61139");
                               Not' ("temp-61137","temp-61138");
                               Or' ("temp-61138", "x0", "x1");
                               Or' ("temp-61139", "x2", "x3")|]|] opStruct
-let (_, _,  _, _, _, _, _, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i)) 3 16 1 (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
+let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 0; Args = [||] }|]
+let (_, _, _, _, _, _, _, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
+                                                             fixedInstrs 3 1 1 (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
 let expr = testExpr |> collapse opStruct'.OpExprs'
 //testExpr.Length
 //let opStruct = updateOps [|falseExpr|] (getOpStruct ())
@@ -337,7 +341,7 @@ let rec rndShuffle : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOf
             
             let freshRndExpr = rndExpr |> updateVars
             let (result, _,  _, _, _, _, _, newExpr) = 
-                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
+                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) [||] 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
             //let (result, newExpr) = 
             //    run' rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) rndExpr.Length [|0 .. rndFinal - 1|]
             
@@ -395,7 +399,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
             let freshRndExpr = rndExpr |> updateVars
             printfn "freshRndExpr: %A" freshRndExpr
             let (result, _,  _, _, _, _, _, newExpr) = 
-                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
+                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) [||] 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
             //let (result, newExpr) = 
             //    run' rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) rndExpr.Length [|0 .. rndFinal - 1|]
             

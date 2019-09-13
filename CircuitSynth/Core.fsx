@@ -351,8 +351,8 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
            (string [] -> string) [] ->
            int [] ->
            (int -> bool) ->
-           int [] -> int [] -> int [] -> int -> (Status * int * Instrs') = 
-    fun numOfVars opExprs ops opStrs availableOpExprs verify sample test arityOfOps numOfInstrs ->
+           int [] -> int [] -> int [] -> int -> Instrs' -> (Status * int * Instrs') = 
+    fun numOfVars opExprs ops opStrs availableOpExprs verify sample test arityOfOps numOfInstrs fixedInstrs ->
         let varBitSize = 5
         let instrBitSize = 8
         let opBitSize = 5
@@ -380,6 +380,11 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
         let instrs = createInstrs numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
         let check = checkInstrs availableOpExprs arityOfOps numOfOps vars instrs
         solver.Assert(check)
+
+        for fixedInstr in fixedInstrs do
+            let fixedOp = Eq (VarPos opBitSize (sprintf "OpVar-%d" fixedInstr.Pos)) (toBits opBitSize fixedInstr.Op)
+            solver.Assert(fixedOp)
+            ()
 
         //printfn "Cubes: %d" <| (solver.Cube() |> Seq.length)
         //File.WriteAllText("dump.txt", solver.ToString())
@@ -422,10 +427,10 @@ let compileInstrsToBoolExprs : int [] -> Instrs' -> BoolExpr' [] = fun args inst
                 | _ -> Func' (g (sprintf "temp-%d" instr.Pos), instr.Args |> Array.take args.[instr.Op] |> Array.map f, instr.Op) |] 
 
 
-let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int []) -> 
+let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (unit -> int []) -> 
               (int * int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * 
                (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs' * BoolExpr' []) = 
-    fun numOfVars opStruct verify numOfTries numOfInstrsIndex pos baseSample ->
+    fun numOfVars opStruct verify fixedInstrs numOfTries numOfInstrsIndex pos baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let values = [|0..final - 1|]
         let stats = Array.init final (fun i ->  0)
@@ -476,7 +481,7 @@ let rec run : int -> Ops -> (int -> bool) -> int -> int -> int -> (unit -> int [
 
                                 let watch = new Stopwatch()
                                 watch.Start()
-                                let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample  [|0..final - 1|] arityOfOps numOfInstrs
+                                let (status, result, instrs') = find numOfVars opExprs ops opStrs availableOpExprs verify sample [|0..final - 1|] arityOfOps numOfInstrs fixedInstrs 
                                 watch.Stop()
                                 printfn "%d %d %A %A %A" sample.Length numOfInstrs availableOpExprs (status, result) watch.Elapsed
                                 yield (numOfInstrs, status, result, instrs', watch.Elapsed)
