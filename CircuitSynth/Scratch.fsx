@@ -130,13 +130,24 @@ let ranges : (int -> bool) -> Ops -> seq<BoolExpr' []> = fun f opStruct ->
             |> Array.filter f
 
         printfn "Values: %A" values
-        for n = 1 to values.Length do
-            let (result, pos, _, _, _, _, instrs', expr) = 
-                run numOfVars opStruct 
-                    (fun i -> values |> Array.take n |> Array.exists (fun j -> j = i)) 
-                    [||] 3 1 1 (fun () -> [|0  .. final - 1|])
+        let posRef = ref 1
+        let flag = ref true
+        let n = ref 1
+        while !flag do
+            printfn "%d - %d" !n !posRef 
+            let (result, _, _, _, _, _, instrs', expr) = 
+              tryWith (fun () ->  run numOfVars opStruct 
+                                        (fun i -> values |> Array.take !n |> Array.exists (fun j -> j = i)) 
+                                        [||] 3 !posRef 64 (fun () -> [|0  .. final - 1|]))
+                      (-1, -1, Unchecked.defaultof<_>, Unchecked.defaultof<_>, Unchecked.defaultof<_>, Unchecked.defaultof<_>, [||], [||])
+            posRef := expr.Length
+            incr n
+            if !n > values.Length then
+                flag := false
             if result = final then
                 yield expr
+            else
+                flag := false
     }
 
 let randomSubExprs : BoolExpr' [] [] -> seq<BoolExpr' []> = fun exprs -> 
@@ -201,8 +212,8 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         //for (result, expr) in ranges f opStruct  do
         //    yield ()
 
-        let result = population 10 f opStruct (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
-        printfn "%A" (result |> Array.map (fun (r, _, expr) -> (r, expr)))
+        let result = ranges f opStruct 
+        printfn "%A" (result |> Array.ofSeq)
         yield ()
         //let exprs' = randomSubExprs exprs |> take' 100 |> Seq.toArray
         //printfn "%A" exprs'
@@ -269,7 +280,7 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 
 
 
-let f : int -> bool = isEven
+let f : int -> bool = isPrime
 
 let values = 
     [|0 .. final - 1|]
@@ -291,7 +302,7 @@ let opStruct = (getOpStruct ())
 let exprs = 
     values
     |> Array.mapi (fun i n -> 
-            let (_, _, _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) [||] 3 1 1 (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
+            let (_, _, _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) [||] 3 1 64 (fun () -> [|0 .. final - 1|])
             //let (result, expr') = run' numOfVars opStruct (equalTo n) 3 1 [|0 .. final - 1|]
             expr')
 
