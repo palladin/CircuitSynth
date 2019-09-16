@@ -214,7 +214,7 @@ let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<unit> = fun i fixed
 
         let result = ranges (i + 1) f opStruct fixedInstrs |> Array.ofSeq 
         let rank = result 
-                    |> Array.map (fun (instrs, _) -> instrs.[i].Op) 
+                    |> Array.map (fun (instrs, _) -> instrs.[fixedInstrs.Length].Op) 
                     |> Array.countBy id
                     |> Array.sortBy (fun (op, c) -> -c)
         printfn "%A" (result |> Array.map snd)
