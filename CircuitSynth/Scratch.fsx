@@ -210,20 +210,26 @@ let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<unit> = fun i fixed
     seq {
         setTimeout(20.0 * float 1)
 
+        printfn "i: %d" i
         printfn "fixedInstrs: %A" fixedInstrs
 
         let result = ranges (i + 1) f opStruct fixedInstrs |> Array.ofSeq 
-        let rank = result 
-                    |> Array.map (fun (instrs, _) -> instrs.[fixedInstrs.Length].Op) 
-                    |> Array.countBy id
-                    |> Array.sortBy (fun (op, c) -> -c)
         printfn "%A" (result |> Array.map snd)
-        printfn "%A:" (rank |> Array.ofSeq)
-        yield ()
-        let fixedInstrs' = Array.append fixedInstrs [|{ Pos = fixedInstrs.Length; Op = rank |> Seq.map fst |> Seq.head; Args = [||] }|]
+
+        if result.Length = 0 then
+            yield ()
+            yield! exec (i - 1) fixedInstrs f opStruct
+        else
+            let rank = result 
+                        |> Array.map (fun (instrs, _) -> instrs.[fixedInstrs.Length].Op) 
+                        |> Array.countBy id
+                        |> Array.sortBy (fun (op, c) -> -c)
+            printfn "%A:" (rank |> Array.ofSeq)
+            yield ()
+            let fixedInstrs' = Array.append fixedInstrs [|{ Pos = fixedInstrs.Length; Op = rank |> Seq.map fst |> Seq.head; Args = [||] }|]
 
 
-        yield! exec (i + 1) fixedInstrs' f opStruct
+            yield! exec (i + 1) fixedInstrs' f opStruct
     }
 
 let enum = (exec 0 [||] isPowerOfTwo <| getOpStruct ()).GetEnumerator()
