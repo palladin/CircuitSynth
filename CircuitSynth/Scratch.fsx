@@ -266,12 +266,12 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 
 
 
-let f : int -> bool = isPrime
+let f : int -> bool = isPowerOfTwo
 
 let values = 
     [|0 .. final - 1|]
     |> Array.filter f
-    //|> Array.take 2
+    |> Array.take 2
 
 let opStruct = (getOpStruct ())
 
@@ -293,14 +293,13 @@ let exprs =
             expr')
 
 setTimeout(20.0)
-let opStruct' = updateOps [|[|And' ("temp-61136","temp-61137","temp-61139");
-                              Not' ("temp-61137","temp-61138");
-                              Or' ("temp-61138", "x0", "x1");
-                              Or' ("temp-61139", "x2", "x3")|]|] opStruct
+
 let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 2; Args = [||] }|]
-let (_, _, _, _, _, _, _, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                                                             fixedInstrs 3 1 1 (fun () -> getSample f ([|0 .. final - 1|] |> randomize) final)
-let expr = testExpr |> collapse opStruct'.OpExprs'
+let (_, _, _, _, _, _, instrs, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
+                                                                  [||] 3 1 64 (fun () -> [|0 .. final - 1|])
+run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
+                       instrs 3 1 64 (fun () -> [|0 .. final - 1|])
+//let expr = testExpr |> collapse opStruct.OpExprs'
 //testExpr.Length
 //let opStruct = updateOps [|falseExpr|] (getOpStruct ())
 
