@@ -122,7 +122,7 @@ let population : int -> (int -> bool) -> Ops -> (unit -> int[]) -> (int * Instrs
         let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f [||] 3 1 numOfSamples samplef
         yield (result, instrs', expr) |]
 
-let ranges : (int -> bool) -> Ops -> seq<BoolExpr' []> = fun f opStruct -> 
+let ranges : int -> (int -> bool) -> Ops -> seq<BoolExpr' []> = fun takeN f opStruct -> 
     seq {
         
         let values = 
@@ -132,17 +132,18 @@ let ranges : (int -> bool) -> Ops -> seq<BoolExpr' []> = fun f opStruct ->
         printfn "Values: %A" values
         let posRef = ref 1
         let flag = ref true
-        let n = ref 1
+        let i = ref 1
         while !flag do
-            printfn "%d - %d" !n !posRef 
+            let skipN = rand.Next(0, values.Length)
+            printfn "%d - %d" !i skipN 
             let (result, _, _, _, _, _, instrs', expr) = 
               tryWith (fun () ->  run numOfVars opStruct 
-                                        (fun i -> values |> Array.take !n |> Array.exists (fun j -> j = i)) 
-                                        [||] 3 !posRef 64 (fun () -> [|0  .. final - 1|]))
+                                        (fun i -> values |> Array.skip skipN |> take' takeN |> Array.ofSeq |> Array.exists (fun j -> j = i)) 
+                                        [||] 3 1 64 (fun () -> [|0  .. final - 1|]))
                       (-1, -1, Unchecked.defaultof<_>, Unchecked.defaultof<_>, Unchecked.defaultof<_>, Unchecked.defaultof<_>, [||], [||])
             posRef := expr.Length
-            incr n
-            if !n > values.Length then
+            incr i
+            if !i > 10 then
                 flag := false
             if result = final then
                 yield expr
@@ -212,7 +213,7 @@ let rec exec : int -> (int -> bool) -> Ops -> seq<unit> = fun i f opStruct ->
         //for (result, expr) in ranges f opStruct  do
         //    yield ()
 
-        let result = ranges f opStruct 
+        let result = ranges 2 f opStruct 
         printfn "%A" (result |> Array.ofSeq)
         yield ()
         //let exprs' = randomSubExprs exprs |> take' 100 |> Seq.toArray
