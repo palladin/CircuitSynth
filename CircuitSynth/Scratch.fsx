@@ -298,7 +298,7 @@ setTimeout(160.0)
 let (_, _, _, _, _, _, instrs, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
                                                                   [||] 3 1 64 (fun () -> [|0 .. final - 1|])
 run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                       instrs 3 1 1 (fun () -> getS [|0 .. final - 1|])
+                       instrs 3 1 1 (fun () -> getSample f [|0 .. final - 1|] final)
 //let expr = testExpr |> collapse opStruct.OpExprs'
 //testExpr.Length
 //let opStruct = updateOps [|falseExpr|] (getOpStruct ())

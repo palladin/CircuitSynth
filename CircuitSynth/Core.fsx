@@ -465,6 +465,12 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
                     failwithf "Duplicate elements - base %A - sample %A " baseSample sample
 
+                let notFound = if old.Length <> 0 then
+                                    let (_, _, instrs', _) = old.[0]
+                                    let f = evalInstrs' ops instrs'
+                                    [|0..final - 1|] |> Array.filter (fun i -> f <| toBits' numOfVars i <> verify i)
+                                else [||]
+                printfn "notFound: %A" notFound
                 let result =
                     seq {
                         for numOfInstrs in {numOfInstrsIndex..100} do
