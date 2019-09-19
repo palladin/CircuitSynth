@@ -271,7 +271,7 @@ let f : int -> bool = isPowerOfTwo
 let values = 
     [|0 .. final - 1|]
     |> Array.filter f
-    |> Array.take 2
+    |> Array.take 5
 
 let opStruct = (getOpStruct ())
 
@@ -292,13 +292,13 @@ let exprs =
             //let (result, expr') = run' numOfVars opStruct (equalTo n) 3 1 [|0 .. final - 1|]
             expr')
 
-setTimeout(20.0)
+setTimeout(160.0)
 
 //let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 2; Args = [||] }|]
 let (_, _, _, _, _, _, instrs, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
                                                                   [||] 3 1 64 (fun () -> [|0 .. final - 1|])
 run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                       instrs 3 1 64 (fun () -> [|0 .. final - 1|])
+                       instrs 3 1 1 (fun () -> getS [|0 .. final - 1|])
 //let expr = testExpr |> collapse opStruct.OpExprs'
 //testExpr.Length
 //let opStruct = updateOps [|falseExpr|] (getOpStruct ())
