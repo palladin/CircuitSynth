@@ -1,4 +1,4 @@
-﻿//#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
+﻿#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
 #load "Init.fsx"
 #load "Utils.fsx"
 #load "CoreTypes.fsx"
@@ -294,7 +294,7 @@ let exprs =
 
 setTimeout(20.0)
 
-let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 2; Args = [||] }|]
+//let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 2; Args = [||] }|]
 let (_, _, _, _, _, _, instrs, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
                                                                   [||] 3 1 64 (fun () -> [|0 .. final - 1|])
 run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))

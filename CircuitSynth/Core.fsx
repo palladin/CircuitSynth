@@ -380,9 +380,19 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
         let instrs = createInstrs numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs
         let check = checkInstrs availableOpExprs arityOfOps numOfOps vars instrs
         solver.Assert(check)
-
+        
         for fixedInstr in fixedInstrs do
             let fixedOp = Eq (VarPos opBitSize (sprintf "OpVar-%d" fixedInstr.Pos)) (toBits opBitSize fixedInstr.Op)
+            for (argIndex, fixedArg) in fixedInstr.Args |> Array.mapi (fun i arg -> (i, arg)) do
+                let isVar = if fixedArg.IsVar then True else False
+                let fixedIsVar = Eq [|Var (sprintf "IsVar-%d-%d" fixedInstr.Pos argIndex)|] [|isVar|]
+                let fixedVarPos = Eq (VarPos varBitSize (sprintf "VarPos-%d-%d" fixedInstr.Pos argIndex)) (toBits varBitSize fixedArg.VarPos)
+                let fixedInstrPos = Eq (VarPos instrBitSize (sprintf "InstrPos-%d-%d" fixedInstr.Pos argIndex)) (toBits instrBitSize fixedArg.InstrPos)
+
+                solver.Assert(fixedIsVar)
+                solver.Assert(fixedVarPos)
+                solver.Assert(fixedInstrPos)
+                ()
             solver.Assert(fixedOp)
             ()
 
