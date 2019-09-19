@@ -454,23 +454,26 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
         let baseSample = baseSample ()
         let posRef = ref pos
         let notFound = ref [||]
-        let baseSample = ref baseSample
+
 
         let rec run' : int -> (Status * int * Instrs' * TimeSpan) [] -> (Status * int * Instrs' * TimeSpan * int []) = 
             fun numOfInstrsIndex old ->
-                //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
-                //let sample = getSample verify sample numOfSamples
-                let sample = !baseSample |> Seq.take !posRef |> Seq.toArray 
-                //printfn "Sample: %A" sample
-                if sample.Length <> (sample |> Array.distinct |> Array.length) then
-                    failwithf "Duplicate elements - base %A - sample %A " baseSample sample
-
                 let notFound = if old.Length <> 0 then
                                     let (_, _, instrs', _) = old.[0]
                                     let f = evalInstrs' ops instrs'
                                     [|0..final - 1|] |> Array.filter (fun i -> f <| toBits' numOfVars i <> verify i)
                                 else [||]
                 printfn "notFound: %A" notFound
+                //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
+                //let sample = getSample verify sample numOfSamples
+                let sample = Array.append notFound baseSample |> Array.distinct
+                let sample = getSample verify sample final |> Seq.take !posRef |> Seq.toArray 
+                //printfn "Sample: %A" sample
+                if sample.Length <> (sample |> Array.distinct |> Array.length) then
+                    failwithf "Duplicate elements - base %A - sample %A " baseSample sample
+
+
+                
                 let result =
                     seq {
                         for numOfInstrs in {numOfInstrsIndex..100} do
@@ -495,7 +498,7 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                 | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when result = final -> 
                     //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                     (Status.SATISFIABLE, result, instrs', elapsed, sample)
-                | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when !posRef = (!baseSample).Length -> 
+                | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when !posRef = baseSample.Length -> 
                     //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                     run' numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
                 | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) ->
