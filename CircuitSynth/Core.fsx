@@ -466,7 +466,7 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                 printfn "notFound: %A" notFound
                 //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
-                let sample = Array.append notFound baseSample |> Array.distinct
+                let sample = baseSample//Array.append notFound baseSample |> Array.distinct
                 let sample = getSample verify sample final |> Seq.take !posRef |> Seq.toArray 
                 //printfn "Sample: %A" sample
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
@@ -496,11 +496,8 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                     |> Seq.tryHead
                 match result with
                 | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when result = final -> 
-                    //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
+                    printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                     (Status.SATISFIABLE, result, instrs', elapsed, sample)
-                | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) when !posRef = baseSample.Length -> 
-                    //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
-                    run' numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
                 | Some (numOfInstrs, Status.SATISFIABLE, result, instrs', elapsed) ->
                     //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
                     incr posRef

@@ -211,28 +211,22 @@ let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<unit> = fun i fixed
         setTimeout(20.0 * float 1)
 
         printfn "i: %d" i
-        printfn "fixedInstrs: %A" fixedInstrs
+        //printfn "fixedInstrs: %A" fixedInstrs
 
-        let result = ranges (i + 1) f opStruct fixedInstrs |> Array.ofSeq 
-        printfn "%A" (result |> Array.map snd)
+        let values = 
+            [|0 .. final - 1|]
+            |> Array.filter f
+            |> Array.take i
 
-        if result.Length = 0 then
-            yield ()
-            yield! exec (i - 1) fixedInstrs f opStruct
-        else
-            let rank = result 
-                        |> Array.map (fun (instrs, _) -> instrs.[fixedInstrs.Length].Op) 
-                        |> Array.countBy id
-                        |> Array.sortBy (fun (op, c) -> -c)
-            printfn "%A:" (rank |> Array.ofSeq)
-            yield ()
-            let fixedInstrs' = Array.append fixedInstrs [|{ Pos = fixedInstrs.Length; Op = rank |> Seq.map fst |> Seq.head; Args = [||] }|]
+        let (_, _, _, _, _, _, instrs, _) = 
+            run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
+                                   fixedInstrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
-
-            yield! exec (i + 1) fixedInstrs' f opStruct
+        yield ()
+        yield! exec (i + 1) instrs f opStruct
     }
 
-let enum = (exec 0 [||] isPowerOfTwo <| getOpStruct ()).GetEnumerator()
+let enum = (exec 1 [||] isPowerOfTwo <| getOpStruct ()).GetEnumerator()
 
 
 //enum.MoveNext()
@@ -296,9 +290,9 @@ setTimeout(160.0)
 
 //let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 2; Args = [||] }|]
 let (_, _, _, _, _, _, instrs, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                                                                  [||] 3 1 64 (fun () -> [|0 .. final - 1|])
+                                                                  [||] 3 1 1 (fun () -> [|0 .. final - 1|])
 run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                       instrs 3 1 1 (fun () -> getSample f [|0 .. final - 1|] final)
+                       instrs 3 1 1 (fun () -> [|0 .. final - 1|])
 //let expr = testExpr |> collapse opStruct.OpExprs'
 //testExpr.Length
 //let opStruct = updateOps [|falseExpr|] (getOpStruct ())
