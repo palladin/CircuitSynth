@@ -464,9 +464,11 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                                     [|0..final - 1|] |> Array.filter (fun i -> f <| toBits' numOfVars i <> verify i)
                                 else [||]
                 printfn "notFound: %A" notFound
-                //let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy snd |> Array.map fst
+                for i in notFound do
+                    stats.[i] <- stats.[i] + 1
+                let sample = (baseSample, stats) ||> Array.zip |> Array.map (fun (i, c)  -> (i, c)) |> Array.sortBy (fun (i, c) -> -c) |> Array.map fst
                 //let sample = getSample verify sample numOfSamples
-                let sample = baseSample//Array.append notFound baseSample |> Array.distinct
+                //let sample = baseSample//Array.append notFound baseSample |> Array.distinct
                 let sample = getSample verify sample final |> Seq.take !posRef |> Seq.toArray 
                 //printfn "Sample: %A" sample
                 if sample.Length <> (sample |> Array.distinct |> Array.length) then
