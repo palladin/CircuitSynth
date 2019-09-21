@@ -223,13 +223,14 @@ let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' 
                                    fixedInstrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
         yield expr
-        if i <> data.Length then
+        if i <> (data |> Array.filter f |> Array.length) then
             yield! exec (i + 1) instrs f data opStruct
     }
 
-let exec' = exec 1 [||] isPowerOfTwo [|0 .. final - 1|] (getOpStruct ())
+let exec' = exec 1 [||] isPrime [|0 .. final - 1|] (getOpStruct ())
 
-exec' |> Seq.last
+//let expr = exec' |> Seq.last
+
 
 let enum = exec'.GetEnumerator()
 
@@ -237,16 +238,33 @@ let enum = exec'.GetEnumerator()
 enum.MoveNext() |> ignore
 let expr = enum.Current
 
+let expr' = compileToBoolExpr expr (Var "res") (freshVars 8)
+expr' |> string
+
+
+
+
+let expr'' = fixedPoint simplify expr' 
+expr'' |> string
+
+let rec test : BoolExpr -> unit = fun expr -> 
+    match expr with
+    | Eq (r, x) -> printfn "eq"; test x
+    | And (x, y) -> printfn "and"; test x; test y;
+    | Or (x, y) -> printfn "or"; test x; test y;
+    | Not x -> printfn "not"; test x
+    | AndStar xs -> printfn "andstar %A" xs
+    | OrStar xs -> printfn "orstar %A" xs
+    | _ -> printfn "oups %A" expr
+
+test expr''
+
+
 
 //while enum.MoveNext() do
 //    ()
 
-let (_, _, _, _, _, _, instrs, _) = 
-            run numOfVars (getOpStruct ()) isPowerOfTwo
-                                   [||] 3 1 1 (fun () -> [|0 .. final - 1|])
 
-run numOfVars (getOpStruct ()) isPowerOfTwo
-                                   instrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
 
 let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
