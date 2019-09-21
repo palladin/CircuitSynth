@@ -206,7 +206,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 
 
-let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<unit> = fun i fixedInstrs f opStruct -> 
+let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr' []> = fun i fixedInstrs f opStruct -> 
     seq {
         setTimeout(120.0 * float 1)
 
@@ -218,18 +218,18 @@ let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<unit> = fun i fixed
             |> Array.filter f
             |> Array.take i
 
-        let (_, _, _, _, _, _, instrs, _) = 
+        let (_, _, _, _, _, _, instrs, expr) = 
             run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
                                    fixedInstrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
-        yield ()
+        yield expr
         yield! exec (i + 1) instrs f opStruct
     }
 
 let enum = (exec 1 [||] isPrime <| getOpStruct ()).GetEnumerator()
 
 
-//enum.MoveNext()
+let expr = enum.MoveNext()
 
 
 //while enum.MoveNext() do
@@ -265,94 +265,9 @@ let f : int -> bool = isPrime
 let values = 
     [|0 .. final - 1|]
     |> Array.filter f
-    |> Array.take 3
+    //|> Array.take 3
 
 let opStruct = (getOpStruct ())
-
-
-let exprs = 
-    values
-    |> Array.mapi (fun i n -> 
-            let (_, _, _, _, _, _, _, expr') = run numOfVars opStruct (equalTo n) [||] 3 1 64 (fun () -> [|0 .. final - 1|])
-            //let (result, expr') = run' numOfVars opStruct (equalTo n) 3 1 [|0 .. final - 1|]
-            expr')
-
-setTimeout(160.0)
-
-//let fixedInstrs : Instrs' = [|{ Pos = 0; Op = 2; Args = [||] }|]
-let (_, _, _, _, _, _, instrs, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                                                                  [||] 3 1 1 (fun () -> [|0 .. final - 1|])
-run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                       instrs 3 1 1 (fun () -> [|0 .. final - 1|])
-//let expr = testExpr |> collapse opStruct.OpExprs'
-//testExpr.Length
-//let opStruct = updateOps [|falseExpr|] (getOpStruct ())
-
-
-//let expr =
-//    Array.reduce (fun (expr : BoolExpr' []) (expr' : BoolExpr' []) ->  
-//                    Array.append 
-//                        [|Or'(string (FreshVar ()), getVarBoolExpr' expr.[0], getVarBoolExpr' expr'.[0])|]
-//                        (Array.append expr expr')) exprs
-
-expr.Length
-
-
-verify numOfVars (fun i -> values |> Array.exists (fun j -> j = i))
-                 (fun i -> let g = eval' [||] expr in g (toBits' numOfVars i))
-
-let rec rndShuffle : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVars n expr ->
-    seq {
-        setTimeout(20.0)
-        if n = 0 then 
-            yield expr
-        else
-            printfn "rndShuffle n: %d" n
-            printfn "rndShuffle expr: %d" expr.Length
-
-            let rndExpr = randomSubExprs [|expr|] 
-                          |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
-                          |> Seq.filter (fun expr -> expr.Length <= 4)
-                          |> Seq.head
-
-            let rndExprNumOfVars = rndExpr |> getLeafVars |> Array.length
-            let rndFinal = twoPower rndExprNumOfVars
-            printfn "rndShuffle rndExpr vars: %A" (rndExpr |> getLeafVars)
-            printfn "rndShuffle rndExpr: %d" rndExpr.Length
-            
-            let freshRndExpr = rndExpr |> updateVars
-            let (result, _,  _, _, _, _, _, newExpr) = 
-                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) [||] 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
-            //let (result, newExpr) = 
-            //    run' rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) rndExpr.Length [|0 .. rndFinal - 1|]
-            
-            if result <> rndFinal then
-                failwithf "rndShuffle %d - %d" result rndFinal
-            else
-                let _ = 
-                    verify numOfVars (fun i -> let g = eval' [||] freshRndExpr in g (toBits' rndExprNumOfVars i))
-                                     (fun i -> let g = eval' [||] newExpr in g (toBits' rndExprNumOfVars i))
-
-                printfn "rndShuffle newExpr: %d" newExpr.Length
-
-                if newExpr.Length > rndExpr.Length then
-                    yield! rndShuffle numOfVars (n - 1) expr
-                else
-                    let subsNewExpr = subs (rndExpr |> getLeafVars) newExpr
-                    let expr' = cleanupBoolExpr' (replaceBoolExpr' (getVarBoolExpr' rndExpr.[0]) subsNewExpr expr)
-
-                    let _ =
-                        verify numOfVars (fun i -> let g = eval' [||] expr  in g (toBits' numOfVars i))
-                                         (fun i -> let g = eval' [||] expr' in g (toBits' numOfVars i))
-
-                    printfn "rndShuffle expr': %d" expr'.Length
-
-                    if expr'.Length <= expr.Length then
-                        yield! rndShuffle numOfVars (n - 1) expr'
-                    else
-                        yield! rndShuffle numOfVars (n - 1) expr
-    }
-
 
 let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVars n expr ->
     seq {
@@ -416,8 +331,8 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
                         yield! minimize numOfVars (n - 1) expr
     }
 
-let expr' = rndShuffle numOfVars 200 expr |> Seq.last
-let expr'' = minimize numOfVars 200 expr' |> Seq.last
+
+let expr' = minimize numOfVars 200 expr |> Seq.last
 
 
 
