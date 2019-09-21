@@ -223,10 +223,15 @@ let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' 
                                    fixedInstrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
         yield expr
-        yield! exec (i + 1) instrs f data opStruct
+        if i <> data.Length then
+            yield! exec (i + 1) instrs f data opStruct
     }
 
-let enum = (exec 1 [||] xors [|0 .. final - 1|] <| getOpStruct ()).GetEnumerator()
+let exec' = exec 1 [||] isPowerOfTwo [|0 .. final - 1|] (getOpStruct ())
+
+exec' |> Seq.last
+
+let enum = exec'.GetEnumerator()
 
 
 enum.MoveNext() |> ignore
@@ -236,7 +241,12 @@ let expr = enum.Current
 //while enum.MoveNext() do
 //    ()
 
+let (_, _, _, _, _, _, instrs, _) = 
+            run numOfVars (getOpStruct ()) isPowerOfTwo
+                                   [||] 3 1 1 (fun () -> [|0 .. final - 1|])
 
+run numOfVars (getOpStruct ()) isPowerOfTwo
+                                   instrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
 
 let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
