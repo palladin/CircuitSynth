@@ -206,7 +206,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 
 
-let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr' []> = fun i fixedInstrs f opStruct -> 
+let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' []> = fun i fixedInstrs f data opStruct -> 
     seq {
         setTimeout(120.0 * float 1)
 
@@ -214,7 +214,7 @@ let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr' []> = fun
         //printfn "fixedInstrs: %A" fixedInstrs
 
         let values = 
-            [|0 .. final - 1|] 
+            data
             |> Array.filter f
             |> Array.take i
 
@@ -223,13 +223,14 @@ let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr' []> = fun
                                    fixedInstrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
         yield expr
-        yield! exec (i + 1) instrs f opStruct
+        yield! exec (i + 1) instrs f data opStruct
     }
 
-let enum = (exec 1 [||] isPrime <| getOpStruct ()).GetEnumerator()
+let enum = (exec 1 [||] xors [|0 .. final - 1|] <| getOpStruct ()).GetEnumerator()
 
 
-let expr = enum.MoveNext()
+enum.MoveNext() |> ignore
+let expr = enum.Current
 
 
 //while enum.MoveNext() do
