@@ -48,7 +48,7 @@ let lookupInstrValue : BoolExpr -> BoolExpr [] -> Instrs -> BoolExpr =
 
 let createInstrs : int -> int -> int -> int -> int [] -> int -> Instrs = 
     fun numOfVars varBitSize instrBitSize opBitSize arityOfOps numOfInstrs ->
-        let numOfArgs = if numOfVars < 2 then 2 else numOfVars
+        let numOfArgs = arityOfOps |> Array.max
         [| for i in [|0..numOfInstrs - 1|] do
                 yield { Pos = toBits instrBitSize i; Value = FreshVar (); Op = VarPos opBitSize (sprintf "OpVar-%d" i)
                         Args = [|0..numOfArgs - 1|] 

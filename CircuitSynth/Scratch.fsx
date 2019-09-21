@@ -208,13 +208,13 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<unit> = fun i fixedInstrs f opStruct -> 
     seq {
-        setTimeout(20.0 * float 1)
+        setTimeout(120.0 * float 1)
 
         printfn "i: %d" i
         //printfn "fixedInstrs: %A" fixedInstrs
 
         let values = 
-            [|0 .. final - 1|]
+            [|0 .. final - 1|] 
             |> Array.filter f
             |> Array.take i
 
@@ -226,7 +226,7 @@ let rec exec : int -> Instrs' -> (int -> bool) -> Ops -> seq<unit> = fun i fixed
         yield! exec (i + 1) instrs f opStruct
     }
 
-let enum = (exec 1 [||] isPowerOfTwo <| getOpStruct ()).GetEnumerator()
+let enum = (exec 1 [||] isPrime <| getOpStruct ()).GetEnumerator()
 
 
 //enum.MoveNext()
@@ -260,23 +260,14 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 
 
 
-let f : int -> bool = isPowerOfTwo
+let f : int -> bool = isPrime
 
 let values = 
     [|0 .. final - 1|]
     |> Array.filter f
-    |> Array.take 5
+    |> Array.take 3
 
 let opStruct = (getOpStruct ())
-
-//setTimeout(120.0)
-//let (_, _,  _, _, _, _, _, testExpr) = run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i)) 3 1 1 (fun () -> [|0 .. final - 1|])
-//testExpr.Length
-//let opStruct = updateOps [|falseExpr|] (getOpStruct ())
-
-
-//setTimeout(120.0)
-//let _ = run' numOfVars opStruct isPowerOfTwo 20 1 [|0 .. final - 1|] 
 
 
 let exprs = 
