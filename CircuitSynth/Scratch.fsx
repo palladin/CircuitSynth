@@ -208,7 +208,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' []> = fun i fixedInstrs f data opStruct -> 
     seq {
-        setTimeout(120.0 * float 1)
+        setTimeout(240.0 * float 1)
 
         printfn "i: %d" i
         //printfn "fixedInstrs: %A" fixedInstrs
@@ -220,14 +220,14 @@ let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' 
 
         let (_, _, _, _, _, _, instrs, expr) = 
             run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-                                   fixedInstrs 3 1 1 (fun () -> [|0 .. final - 1|])
+                                   fixedInstrs 5 1 1 (fun () -> [|0 .. final - 1|])
 
         yield expr
         if i <> (data |> Array.filter f |> Array.length) then
             yield! exec (i + 1) instrs f data opStruct
     }
 
-let exec' = exec 1 [||] isPrime [|0 .. final - 1|] (getOpStruct ())
+let exec' = exec 1 [||] isPrime ([|0 .. final - 1|] |> Array.rev) (getOpStruct ())
 
 //let expr = exec' |> Seq.last
 
@@ -241,9 +241,6 @@ let expr = enum.Current
 let expr' = compileToBoolExpr expr (Var "res") (freshVars 8)
 expr' |> string
 
-
-
-
 let expr'' = fixedPoint simplify expr' 
 expr'' |> string
 
@@ -254,7 +251,8 @@ let rec test : BoolExpr -> unit = fun expr ->
     | Or (x, y) -> printfn "or"; test x; test y;
     | Not x -> printfn "not"; test x
     | AndStar xs -> printfn "andstar %A" xs
-    | OrStar xs -> printfn "orstar %A" xs
+    //| OrStar xs -> printfn "orstar %A" xs
+    | Var x -> printfn "x %A" x
     | _ -> printfn "oups %A" expr
 
 test expr''
