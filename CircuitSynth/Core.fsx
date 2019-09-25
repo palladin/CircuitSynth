@@ -184,6 +184,11 @@ let (|AndStar|_|) : BoolExpr -> BoolExpr [] option = fun expr ->
     | _ when expr.IsAnd -> Some (expr.Args |> Array.map (fun expr -> expr :?> _))
     | _ -> None
 
+let (|OrStar|_|) : BoolExpr -> BoolExpr [] option = fun expr ->
+    match expr with
+    | _ when expr.IsOr -> Some (expr.Args |> Array.map (fun expr -> expr :?> _))
+    | _ -> None
+
 let (|Or|_|) : BoolExpr -> (BoolExpr * BoolExpr) option = fun expr ->
     match expr with
     | _ when expr.IsOr && expr.NumArgs = 2u -> Some (expr.Args.[0] :?> _, expr.Args.[1] :?> _)

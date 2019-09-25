@@ -1,4 +1,4 @@
-﻿#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
+﻿//#I "/Users/nickpalladinos/Projects/CircuitSynth/CircuitSynth"
 #load "Init.fsx"
 #load "Utils.fsx"
 #load "CoreTypes.fsx"
@@ -227,7 +227,7 @@ let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' 
             yield! exec (i + 1) instrs f data opStruct
     }
 
-let exec' = exec 1 [||] isPrime ([|0 .. final - 1|] |> Array.rev) (getOpStruct ())
+let exec' = exec 1 [||] isPrime [|0 .. final - 1|] (getOpStruct ())
 
 //let expr = exec' |> Seq.last
 
@@ -251,7 +251,7 @@ let rec test : BoolExpr -> unit = fun expr ->
     | Or (x, y) -> printfn "or"; test x; test y;
     | Not x -> printfn "not"; test x
     | AndStar xs -> printfn "andstar %A" xs
-    //| OrStar xs -> printfn "orstar %A" xs
+    | OrStar xs -> printfn "orstar %A" xs
     | Var x -> printfn "x %A" x
     | _ -> printfn "oups %A" expr
 
