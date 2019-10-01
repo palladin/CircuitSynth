@@ -208,7 +208,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' []> = fun i fixedInstrs f data opStruct -> 
     seq {
-        setTimeout(240.0 * float 1)
+        setTimeout(120.0 * float 1)
 
         printfn "i: %d" i
         //printfn "fixedInstrs: %A" fixedInstrs
@@ -250,8 +250,8 @@ let rec test : BoolExpr -> unit = fun expr ->
     | And (x, y) -> printfn "and"; test x; test y;
     | Or (x, y) -> printfn "or"; test x; test y;
     | Not x -> printfn "not"; test x
-    | AndStar xs -> printfn "andstar %A" xs
-    | OrStar xs -> printfn "orstar %A" xs
+    | OrStar xs -> printfn "orstar %d" xs.Length ; xs |> Array.map test |> ignore
+    | AndStar xs -> printfn "andstar %d" xs.Length; xs |> Array.map test |> ignore
     | Var x -> printfn "x %A" x
     | _ -> printfn "oups %A" expr
 
@@ -363,7 +363,7 @@ let expr' = minimize numOfVars 200 expr |> Seq.last
 
 
 
-writeTruthTable @"c:\downloads\tt.csv" numOfVars [|0 .. final - 1|] isPowerOfTwo
+writeTruthTable @"c:\downloads\tt.csv" numOfVars [|0 .. final - 1|] isPrime
 
 
 //setTimeout(120.0)
