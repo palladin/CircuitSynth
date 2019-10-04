@@ -227,7 +227,7 @@ let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr' 
             yield! exec (i + 1) instrs f data opStruct
     }
 
-let exec' = exec 1 [||] isPrime [|0 .. final - 1|] (getOpStruct ())
+let exec' = exec 1 [||] isPowerOfTwo [|0 .. final - 1|] (getOpStruct ())
 
 //let expr = exec' |> Seq.last
 
@@ -286,13 +286,11 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 
 
 
-
 let f : int -> bool = isPrime
 
 let values = 
     [|0 .. final - 1|]
     |> Array.filter f
-    //|> Array.take 3
 
 let opStruct = (getOpStruct ())
 
@@ -363,7 +361,7 @@ let expr' = minimize numOfVars 200 expr |> Seq.last
 
 
 
-writeTruthTable @"c:\downloads\tt.csv" numOfVars [|0 .. final - 1|] isPrime
+writeTruthTable @"c:\downloads\tt.csv" 8 [|0 .. (twoPower 8) - 1|] isPrime
 
 
 //setTimeout(120.0)

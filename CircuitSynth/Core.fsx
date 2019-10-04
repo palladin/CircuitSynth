@@ -22,6 +22,19 @@ let toBits' : int -> int -> bool [] =
     fun bitSize i ->
         [| for c in Convert.ToString(i, 2).PadLeft(bitSize, '0') -> if c = '1' then true else false |]
 
+let hamming : bool [] -> bool [] -> int = fun xs ys ->
+    (xs, ys) 
+    ||> Array.zip 
+    |> Array.filter (fun (x, y) -> x <> y) 
+    |> Array.length
+
+
+let hammings : int -> int [] -> int[] -> (int * int) [] = fun numOfVars xs ys ->
+    [| for y in ys do
+            let result = xs |> Array.map (fun x -> hamming (toBits' numOfVars x) (toBits' numOfVars y)) |> Array.sum
+            yield (y, result) |] 
+    |> Array.filter (fun (y, result) -> not <| Array.contains y xs)
+    |> Array.sortBy (fun (y, result) -> result)
 
 let toInt : Model -> BoolExpr [] -> int = 
     fun model bits ->
