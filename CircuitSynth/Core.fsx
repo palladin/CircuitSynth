@@ -314,8 +314,8 @@ let evalQuantifierInstrs : int [] -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
         ctx.MkExists(instrVars, And [|Eq [|instrs.[0].Value|] [|result|]; check|]) :> _
 
 
-let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') = 
-    fun numOfVars opStruct verify testData numOfInstrs ->
+let find' : int -> Ops -> (int -> bool) -> int [] -> int -> Instrs' -> (Status * Instrs') = 
+    fun numOfVars opStruct verify testData numOfInstrs fixedInstrs ->
         let opExprs = opStruct.OpExprs
         let ops = opStruct.Ops
         let opStrs = opStruct.OpStrs 
@@ -333,7 +333,7 @@ let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') =
         let verify' = toFuncBoolExpr numOfVars testData verify
         
         //let t = ctx.MkTactic("qffd")
-        let solver = ctx.MkSolver("UFBV")
+        use solver = ctx.MkSolver("UFBV")
         let p = ctx.MkParams()
         //solver.Parameters <- p.Add("acce", true).Add("abce", true).Add("cce", true)
 
@@ -346,6 +346,25 @@ let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') =
         solver.Assert(ctx.MkForall(freshVars |> Array.map (fun var -> var :> _), 
                                    And [|eval; check|]))
                                    
+
+        for fixedInstr in fixedInstrs do
+            let fixedOp = Eq (VarPos opBitSize (sprintf "OpVar-%d" fixedInstr.Pos)) (toBits opBitSize fixedInstr.Op)
+            for (argIndex, fixedArg) in fixedInstr.Args |> Array.mapi (fun i arg -> (i, arg)) do
+
+                if not fixedArg.IsVar then
+                    let isVar = if fixedArg.IsVar then True else False
+                    let fixedIsVar = Eq [|Var (sprintf "IsVar-%d-%d" fixedInstr.Pos argIndex)|] [|isVar|]
+                    let fixedVarPos = Eq (VarPos varBitSize (sprintf "VarPos-%d-%d" fixedInstr.Pos argIndex)) (toBits varBitSize fixedArg.VarPos)
+                    let fixedInstrPos = Eq (VarPos instrBitSize (sprintf "InstrPos-%d-%d" fixedInstr.Pos argIndex)) (toBits instrBitSize fixedArg.InstrPos)
+
+                    solver.Assert(fixedIsVar)
+                    solver.Assert(fixedVarPos)
+                    solver.Assert(fixedInstrPos)
+                ()
+            solver.Assert(fixedOp)
+            ()
+
+
         let status = solver.Check() 
         if not (status = Status.SATISFIABLE) then
             (status, null)
@@ -353,7 +372,7 @@ let find' : int -> Ops -> (int -> bool) -> int [] -> int -> (Status * Instrs') =
             let model = solver.Model
             let instrs' = toInstrs' model instrs
 
-            //printfn "%s" (strInstrs opStrs arityOfOps instrs')
+            printfn "%s" (strInstrs opStrs arityOfOps instrs')
             let flag = 
                 testData 
                 |> Array.map (fun i -> verify i = evalInstrs' ops instrs' (toBits' numOfVars i) )
@@ -377,7 +396,7 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
         let numOfOps = availableOpExprs.Length
 
         //let t = ctx.MkTactic("qffd")
-        let solver = ctx.MkSolver("QF_FD")
+        use solver = ctx.MkSolver("QF_FD")
         let p = ctx.MkParams()
         //solver.Parameters <- p.Add("acce", true).Add("abce", true).Add("cce", true)
 
@@ -541,27 +560,27 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
         (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', expr')
 
 
-let run' : int -> Ops -> (int -> bool) -> int -> int [] -> (int * BoolExpr' []) = 
-    fun numOfVars opStruct verify numOfInstrs testData ->
+let run' : int -> Ops -> (int -> bool) -> int -> int [] -> Instrs' -> (int * Instrs' * BoolExpr' []) = 
+    fun numOfVars opStruct verify numOfInstrs testData fixedInstrs ->
         let availableOpExprs = 
                 opStruct.Active 
                 |> Array.mapi (fun i b -> (i, b))
                 |> Array.filter (fun (_, b) -> b)
                 |> Array.map (fun (i, _) -> i)
-        let rec run'' : int -> (int * BoolExpr' []) = fun numOfInstrsIndex -> 
+        let rec run'' : int -> (int * Instrs' * BoolExpr' []) = fun numOfInstrsIndex -> 
             let watch = new Stopwatch()
             watch.Start()
-            let (status, instrs') = find' numOfVars opStruct verify testData numOfInstrsIndex
+            let (status, instrs') = find' numOfVars opStruct verify testData numOfInstrsIndex fixedInstrs
             watch.Stop()
             printfn "%d %A %A %A" numOfInstrsIndex availableOpExprs status watch.Elapsed
             match status with
             | Status.SATISFIABLE -> 
                 let expr' = compileInstrsToBoolExprs opStruct.ArityOps instrs'
-                (testData.Length, expr')
+                (testData.Length, instrs', expr')
             | Status.UNSATISFIABLE -> 
                 run'' (numOfInstrsIndex + 1) 
             | Status.UNKNOWN when numOfInstrsIndex = numOfInstrs -> 
-                (0, [||])
+                (0, [||], [||])
             | Status.UNKNOWN -> 
                 run'' (numOfInstrsIndex + 1) 
             | _ -> failwith "oups"
