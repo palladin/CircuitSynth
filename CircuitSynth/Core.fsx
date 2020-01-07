@@ -476,10 +476,10 @@ let compileInstrsToBoolExprs : int [] -> Instrs' -> BoolExpr' [] = fun args inst
                 | _ -> Func' (g (sprintf "temp-%d" instr.Pos), instr.Args |> Array.take args.[instr.Op] |> Array.map f, instr.Op) |] 
 
 
-let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (unit -> int []) -> 
+let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> int -> (unit -> int []) -> 
               (int * int * (int -> bool) * (bool[] -> bool) * (string [] -> string) * 
                (BoolExpr -> BoolExpr [] -> BoolExpr) * Instrs' * BoolExpr' []) = 
-    fun numOfVars opStruct verify fixedInstrs numOfTries numOfInstrsIndex pos baseSample ->
+    fun numOfVars opStruct verify fixedInstrs numOfTries numOfInstrsIndex pos maxInstrIndex baseSample ->
         let final = int (2.0 ** (float numOfVars))
         let values = [|0..final - 1|]
         let stats = Array.init final (fun i ->  0)
@@ -515,7 +515,7 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                 
                 let result =
                     seq {
-                        for numOfInstrs in {numOfInstrsIndex..100} do
+                        for numOfInstrs in {numOfInstrsIndex..maxInstrIndex} do
                             let availableOpExprs = 
                                 opStruct.Active 
                                 |> Array.mapi (fun i b -> (i, b))
@@ -530,7 +530,7 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                             yield (numOfInstrs, status, result, instrs', watch.Elapsed)
                     }
                     |> Seq.filter (fun (_, status, _, _, _) -> status <> Status.UNSATISFIABLE)
-                    |> Seq.take numOfTries
+                    |> take' numOfTries
                     |> Seq.filter (fun (_, status, _, _, _) -> status = Status.SATISFIABLE)
                     |> Seq.tryHead
                 match result with
@@ -542,10 +542,10 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> (un
                     incr posRef
                     run' numOfInstrs (Array.append [|(Status.SATISFIABLE, result, instrs', elapsed)|] old)
                 | None ->
-                    if old.Length = 0 then failwith "UNKNOWN"
-                    let (status, result, instrs', elapsed) = old.[0]
+                    //if old.Length = 0 then failwith "UNKNOWN"
+                    //let (status, result, instrs', elapsed) = old.[0]
                     //printfn "%s" <| strInstrs opStrs arityOfOps instrs'
-                    (status, result, instrs', elapsed, sample)
+                    (Status.UNKNOWN, 0, [||], Unchecked.defaultof<TimeSpan>, [||])
                 | _ -> failwith "oups"
         let (status, result, instrs', elapsed, sample) = run' numOfInstrsIndex [||]
         printfn "%A %A" (status, result) elapsed

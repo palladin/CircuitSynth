@@ -119,7 +119,7 @@ let baseSample : (int -> bool) -> unit -> int [] = fun f () ->
 
 let population : int -> (int -> bool) -> Ops -> (unit -> int[]) -> (int * Instrs' * BoolExpr' []) [] = fun n f opStruct samplef -> 
     [| for i = 1 to n do 
-        let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f [||] 3 1 numOfSamples samplef
+        let (result, pos, f, op, opStr, opExpr, instrs', expr) = run numOfVars opStruct f [||] 3 1 numOfSamples 30 samplef
         yield (result, instrs', expr) |]
 
 let ranges : int -> (int -> bool) -> Ops -> Instrs' -> seq<Instrs' * BoolExpr' []> = fun takeN f opStruct fixedInstrs -> 
@@ -139,7 +139,7 @@ let ranges : int -> (int -> bool) -> Ops -> Instrs' -> seq<Instrs' * BoolExpr' [
             let (result, _, _, _, _, _, instrs', expr) = 
               tryWith (fun () ->  run numOfVars opStruct 
                                         (fun i -> values |> Array.skip skipN |> take' takeN |> Array.ofSeq |> Array.exists (fun j -> j = i)) 
-                                        fixedInstrs 3 1 64 (fun () -> [|0  .. final - 1|]))
+                                        fixedInstrs 3 1 64 30 (fun () -> [|0  .. final - 1|]))
                       (-1, -1, Unchecked.defaultof<_>, Unchecked.defaultof<_>, Unchecked.defaultof<_>, Unchecked.defaultof<_>, [||], [||])
             posRef := expr.Length
             incr i
@@ -208,32 +208,45 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec : int -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<obj> = fun i fixedInstrs f data opStruct -> 
     seq {
-        setTimeout(120.0 * float 1)
+        setTimeout(20.0 * float 1)
 
         printfn "i: %d" i
         //printfn "fixedInstrs: %A" fixedInstrs
-
         let values = 
-            data
+            [|0 .. final - 1|]
             |> Array.filter f
-            |> Array.take i
+            |> Array.filter (fun i -> not <| Array.contains i data)
 
+        let mutable minV = 0
+        let mutable minInstrs = [||]
+        let mutable min = 30
+        let vs = new ResizeArray<int * int>()
+        for v in values do
+            //let (_, instrs, _) = run' numOfVars opStruct (fun i -> Array.append [|v|] data |> Array.exists (fun j -> j = i)) min [|0 .. final - 1|] fixedInstrs
+            let (_, _, _, _, _, _, instrs, _) = run numOfVars opStruct (fun i -> Array.append [|v|] data |> Array.exists (fun j -> j = i)) fixedInstrs 3 1 1 min (fun () -> [|0 .. final - 1|])
+            if instrs.Length <> 0 then
+                vs.Add((v, instrs.Length))
+                if instrs.Length < min then
+                    minV <- v
+                    minInstrs <- instrs
+                    min <- instrs.Length
+
+        for (v, c) in vs do
+            printfn "%d - %d" v c
         //let (_, _, _, _, _, _, instrs, _) = 
-        //    run numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i))
-        //                           fixedInstrs 5 1 1 (fun () -> [|0 .. final - 1|])
+        //    run numOfVars opStruct (fun i -> Array.append [|v|] data |> Array.exists (fun j -> j = i))
+        //                           fixedInstrs 3 1 1 (fun () -> [|0 .. final - 1|])
 
-        let (_, instrs, _) = run' numOfVars opStruct (fun i -> values |> Array.exists (fun j -> j = i)) 30 [|0 .. final - 1|] fixedInstrs
+        let data = Array.append [|minV|] data
+        printfn "Data: %A" data
 
         yield ()
-        if i <> (data |> Array.filter f |> Array.length) then
-            yield! exec (i + 1) instrs f data opStruct
+        if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
+            yield! exec (i + 1) minInstrs f data opStruct
     }
 
 
-let exec' = exec 1 [||] isPowerOfTwo [|0 .. final - 1|] (getOpStruct ())
-
-//let expr = exec' |> Seq.last
-
+let exec' = exec 1 [||] isPrime [||] (getOpStruct ())
 
 let enum = exec'.GetEnumerator()
 
@@ -241,7 +254,7 @@ let enum = exec'.GetEnumerator()
 enum.MoveNext() |> ignore
 
 
-run' numOfVars (getOpStruct ()) isPowerOfTwo 16 [|0 .. final - 1|] [||]
+run' numOfVars (getOpStruct ()) isPowerOfTwo 20 [|0 .. final - 1|] [||]
 
 //while enum.MoveNext() do
 //    ()
