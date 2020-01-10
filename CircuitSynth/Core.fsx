@@ -423,13 +423,16 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             for (argIndex, fixedArg) in fixedInstr.Args |> Array.mapi (fun i arg -> (i, arg)) do
 
                 if not fixedArg.IsVar then
-                    let isVar = if fixedArg.IsVar then True else False
+                    let isVar = False
                     let fixedIsVar = Eq [|Var (sprintf "IsVar-%d-%d" fixedInstr.Pos argIndex)|] [|isVar|]
                     let fixedVarPos = Eq (VarPos varBitSize (sprintf "VarPos-%d-%d" fixedInstr.Pos argIndex)) (toBits varBitSize fixedArg.VarPos)
                     let fixedInstrPos = Eq (VarPos instrBitSize (sprintf "InstrPos-%d-%d" fixedInstr.Pos argIndex)) (toBits instrBitSize fixedArg.InstrPos)
 
                     solver.Assert(fixedIsVar)
                     solver.Assert(fixedVarPos)
+                    solver.Assert(fixedInstrPos)
+                else 
+                    let fixedInstrPos = Or [| for i in {0..(instrs.Length - fixedInstrs.Length) - 1} do yield Eq (VarPos instrBitSize (sprintf "InstrPos-%d-%d" fixedInstr.Pos argIndex)) (toBits instrBitSize (fixedInstrs.Length + i)) |]
                     solver.Assert(fixedInstrPos)
                 ()
             solver.Assert(fixedOp)
@@ -577,6 +580,8 @@ let run' : int -> Ops -> (int -> bool) -> int -> int [] -> Instrs' -> (int * Ins
             | Status.SATISFIABLE -> 
                 let expr' = compileInstrsToBoolExprs opStruct.ArityOps instrs'
                 (testData.Length, instrs', expr')
+            | Status.UNSATISFIABLE when numOfInstrsIndex = numOfInstrs -> 
+                (0, [||], [||])
             | Status.UNSATISFIABLE -> 
                 run'' (numOfInstrsIndex + 1) 
             | Status.UNKNOWN when numOfInstrsIndex = numOfInstrs -> 
