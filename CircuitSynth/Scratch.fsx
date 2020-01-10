@@ -237,8 +237,7 @@ let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<obj> = f
     }
 
 
-let exec' = exec 1 [||] [||] (fun i -> i % 3 = 0) (getOpStruct ())
-
+let exec' = exec 1 [||] [||] isPrime (getOpStruct ())
 
 let enum = exec'.GetEnumerator()
 

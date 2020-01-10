@@ -431,8 +431,10 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
                     solver.Assert(fixedIsVar)
                     solver.Assert(fixedVarPos)
                     solver.Assert(fixedInstrPos)
-                else 
+                else
+                    let fixedVarPos = Eq (VarPos varBitSize (sprintf "VarPos-%d-%d" fixedInstr.Pos argIndex)) (toBits varBitSize fixedArg.VarPos)
                     let fixedInstrPos = Or [| for i in {0..(instrs.Length - fixedInstrs.Length) - 1} do yield Eq (VarPos instrBitSize (sprintf "InstrPos-%d-%d" fixedInstr.Pos argIndex)) (toBits instrBitSize (fixedInstrs.Length + i)) |]
+                    solver.Assert(fixedVarPos)
                     solver.Assert(fixedInstrPos)
                 ()
             solver.Assert(fixedOp)
