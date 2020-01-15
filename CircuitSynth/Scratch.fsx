@@ -54,7 +54,7 @@ let getOpStruct : unit -> Ops = fun () -> { OpExprs = opExprs;
                                             OpStrs = opStrs; 
                                             OpExprs' = opExprs';
                                             ArityOps = arityOfOps;
-                                            Active = [|true; true; true; true|]  }
+                                            Active = [|true; true; true; false|]  }
 
 
 let numOfTries = 1
@@ -93,7 +93,8 @@ let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> =
     fun exprs ->
         let lookupMap = exprs |> toMapBoolExpr
         let rootExpr = exprs.[rand.Next(0, exprs.Length)]
-        let rootExprs = getBoolExpr' rootExpr exprs
+        let rootExprs = getBoolExpr' rootExpr exprs 
+        let complRootExprs = exprs |> Array.filter (fun e -> not <| Array.contains e rootExprs)
         let rec rndBoolExpr' : string -> seq<BoolExpr'> = 
             fun name ->
                 match Array.tryFind (fun (key, _) -> key = name) lookupMap with
@@ -102,11 +103,13 @@ let rndBoolExpr : BoolExpr' [] -> seq<BoolExpr'> =
                     match expr with
                     | And' (v, x, y) | Or' (v, x, y) as expr -> 
                         seq { yield expr; yield! [|x; y|] 
-                                                 |> randomize 
+                                                 |> randomize
+                                                 |> Seq.filter (fun v -> if v.StartsWith("x") then true else countRefs v complRootExprs = 0)
                                                  |> Seq.map rndBoolExpr' 
                                                  |> merge' } 
                     | Not' (v, x) as expr -> 
                         seq { yield expr; yield! [|x|] 
+                                                 |> Seq.filter (fun v -> if v.StartsWith("x") then true else countRefs v complRootExprs = 0)
                                                  |> Seq.collect rndBoolExpr'  } 
                     | Var' (v, x) as expr -> failwith "oups"
                     | Func' (v, args, iops) ->
@@ -206,38 +209,44 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 
 
-let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<obj> = fun i fixedInstrs accInstrs f opStruct -> 
+let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f opStruct -> 
     seq {
-        setTimeout(60.0 * float 1)
-
-        printfn "i: %d" i
-        //printfn "fixedInstrs: %A" fixedInstrs
+        setTimeout(20.0 * float 1)
+        
         let data = 
             [|0 .. final - 1|]
             |> Array.filter f
             |> Array.take i
+        
+        
+        printfn "i: %d" i
+        printfn "Data: %A" data
+        printfn "FixedInstrs length: %A" fixedInstrs.Length
 
-        let (_, _, _, _, _, _, instrs, _) = 
+        let (_, _, _, _, _, _, instrs, expr) = 
             run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
                                    fixedInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
-
+        //let (_, instrs, _) = 
+        //    run' numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i)) (fixedInstrs.Length + 3) [|0 .. final - 1|] fixedInstrs
         //let (_, _, _, _, _, _, instrs, _) = 
         //    run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
         //                           accInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
 
-        yield ()
+        yield expr
 
         if instrs.Length = 0 then
-            yield! exec i accInstrs accInstrs f opStruct
+            yield! exec i accInstrs accInstrs f opStruct 
         else 
             if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
-                    yield! exec (i + 1) fixedInstrs instrs f opStruct
+                    yield! exec (i + 1) fixedInstrs instrs f opStruct 
 
 
     }
 
+let expr = exec 1 [||] [||] isPrime (getOpStruct ()) |> Seq.last 
+expr.Length
 
-let exec' = exec 1 [||] [||] isPrime (getOpStruct ())
+let exec' = exec 1 [||] [||] isPrime (getOpStruct ()) 
 
 let enum = exec'.GetEnumerator()
 
@@ -275,13 +284,9 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 
 
 
-let f : int -> bool = isPrime
-
-let values = 
-    [|0 .. final - 1|]
-    |> Array.filter f
 
 let opStruct = (getOpStruct ())
+setTimeout(120.0)
 
 let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVars n expr ->
     seq {
@@ -294,7 +299,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
 
             let rndExpr = randomSubExprs [|expr|] 
                           |> Seq.filter (fun expr -> (expr |> getLeafVars |> Array.length) <= numOfVars)
-                          //|> Seq.filter (fun expr -> expr.Length <= 4)
+                          //|> Seq.filter (fun expr -> expr.Length < 10)
                           //|> take' 1000
                           //|> Seq.sortBy (fun expr -> (-expr.Length, (expr |> getLeafVars |> Array.length)))
                           |> Seq.head
@@ -309,12 +314,12 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
             let freshRndExpr = rndExpr |> updateVars
             printfn "freshRndExpr: %A" freshRndExpr
             let (result, _,  _, _, _, _, _, newExpr) = 
-                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) [||] 5 1 1 (fun () -> [|0 .. rndFinal - 1|] |> randomize)
+                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) [||] 5 1 1 rndExpr.Length (fun () -> [|0 .. rndFinal - 1|])
+            //let newExpr = exec 1 [||] [||] (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) opStruct |> Seq.last
             //let (result, newExpr) = 
             //    run' rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) rndExpr.Length [|0 .. rndFinal - 1|]
-            
+
             if result <> rndFinal then
-                printfn "%d - %d" result rndFinal
                 yield! minimize numOfVars (n - 1) expr
             else
                 let _ = 
@@ -346,11 +351,15 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
     }
 
 
-let expr' = minimize numOfVars 200 expr |> Seq.last
+let enum' = minimize numOfVars 200 expr
+
+let enum'' = enum'.GetEnumerator()
+
+for i = 1 to 100 do
+    enum''.MoveNext() |> ignore
 
 
-
-writeTruthTable @"c:\downloads\tt.csv" 6 [|0 .. (twoPower 6) - 1|] isPrime
+writeTruthTable @"c:\downloads\tt.csv" 6 [|0 .. (twoPower 6) - 1|] (fun i -> i % 3 = 0)
 
 
 //setTimeout(120.0)
