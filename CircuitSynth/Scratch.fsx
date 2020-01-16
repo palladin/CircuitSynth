@@ -54,7 +54,7 @@ let getOpStruct : unit -> Ops = fun () -> { OpExprs = opExprs;
                                             OpStrs = opStrs; 
                                             OpExprs' = opExprs';
                                             ArityOps = arityOfOps;
-                                            Active = [|true; true; true; false|]  }
+                                            Active = [|true; true; true; true|]  }
 
 
 let numOfTries = 1
@@ -209,7 +209,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 
 
-let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f opStruct -> 
+let rec exec' : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f opStruct -> 
     seq {
         setTimeout(20.0 * float 1)
         
@@ -222,36 +222,93 @@ let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr
         printfn "i: %d" i
         printfn "Data: %A" data
         printfn "FixedInstrs length: %A" fixedInstrs.Length
+        printfn "AccInstrs length: %A" accInstrs.Length
 
+        yield [||]
+
+        
         let (_, _, _, _, _, _, instrs, expr) = 
             run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
                                    fixedInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
-        //let (_, instrs, _) = 
-        //    run' numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i)) (fixedInstrs.Length + 3) [|0 .. final - 1|] fixedInstrs
+        //let (_, instrs, expr) = 
+        //    run' numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i)) 1 [|0 .. final - 1|] fixedInstrs
         //let (_, _, _, _, _, _, instrs, _) = 
         //    run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
         //                           accInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
 
-        yield expr
+        yield [||]
 
         if instrs.Length = 0 then
-            yield! exec i accInstrs accInstrs f opStruct 
+            yield! exec' i accInstrs accInstrs f opStruct 
         else 
             if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
-                    yield! exec (i + 1) fixedInstrs instrs f opStruct 
+                yield! exec' (i + 1) fixedInstrs instrs f opStruct 
+    }
+
+
+let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f data opStruct -> 
+    seq {
+        setTimeout(20.0 * float 1)
+        
+        let values = 
+            [|0 .. final - 1|]
+            |> Array.filter f
+            |> Array.filter (fun i -> not <| Array.contains i data)
+        
+        
+        printfn "i: %d" i
+        printfn "Data: %A" data
+        printfn "Values: %A" values
+        printfn "FixedInstrs length: %A" fixedInstrs.Length
+        printfn "AccInstrs length: %A" accInstrs.Length
+
+        yield [||]
+
+        let mutable minV = 0
+        let mutable minInstrs = [||]
+        let mutable min = 100
+        let vs = new ResizeArray<int * int>()
+        for v in values do
+            //let (_, instrs, _) = run' numOfVars opStruct (fun i -> Array.append [|v|] data |> Array.exists (fun j -> j = i)) min [|0 .. final - 1|] fixedInstrs
+            let (_, _, _, _, _, _, instrs, _) = run numOfVars opStruct (fun i -> Array.append [|v|] data |> Array.exists (fun j -> j = i)) fixedInstrs 1 1 1 (min - 1) (fun () -> [|0 .. final - 1|])
+            if instrs.Length <> 0 then
+                vs.Add((v, instrs.Length))
+                if instrs.Length < min then
+                    minV <- v
+                    minInstrs <- instrs
+                    min <- instrs.Length
+
+        for (v, c) in vs do
+            printfn "%d - %d" v c
+
+        //let (_, _, _, _, _, _, instrs, expr) = 
+        //    run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
+        //                           fixedInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
+        //let (_, instrs, expr) = 
+        //    run' numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i)) 1 [|0 .. final - 1|] fixedInstrs
+        //let (_, _, _, _, _, _, instrs, _) = 
+        //    run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
+        //                           accInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
+
+        yield [||]
+
+        if minInstrs.Length = 0 then
+            yield! exec i accInstrs accInstrs f data opStruct 
+        else 
+            let data = Array.append [|minV|] data
+            if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
+                yield! exec (i + 1) fixedInstrs minInstrs f data opStruct 
 
 
     }
 
-let expr = exec 1 [||] [||] isPrime (getOpStruct ()) |> Seq.last 
+let expr = exec 1 [||] [||] isPrime [||] (getOpStruct ()) |> Seq.last 
 expr.Length
 
-let exec' = exec 1 [||] [||] isPrime (getOpStruct ()) 
+let enum = (exec 1 [||] [||] isPrime [||] (getOpStruct ())).GetEnumerator()
 
-let enum = exec'.GetEnumerator()
-
-for i = 1 to 32 do
-    enum.MoveNext() |> ignore
+//for i = 1 to 32 do
+enum.MoveNext() |> ignore
 
 
 setTimeout(20.0)
@@ -286,11 +343,11 @@ let cleanupBoolExpr' : BoolExpr' [] -> BoolExpr' [] = fun exprs ->
 
 
 let opStruct = (getOpStruct ())
-setTimeout(120.0)
+
 
 let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVars n expr ->
     seq {
-        setTimeout(20.0)
+        setTimeout(120.0)
         if n = 0 then 
             yield expr
         else
@@ -314,7 +371,7 @@ let rec minimize : int -> int -> BoolExpr' [] -> seq<BoolExpr' []> = fun numOfVa
             let freshRndExpr = rndExpr |> updateVars
             printfn "freshRndExpr: %A" freshRndExpr
             let (result, _,  _, _, _, _, _, newExpr) = 
-                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) [||] 5 1 1 rndExpr.Length (fun () -> [|0 .. rndFinal - 1|])
+                run rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) [||] 5 1 1 (rndExpr.Length - 1) (fun () -> [|0 .. rndFinal - 1|])
             //let newExpr = exec 1 [||] [||] (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) opStruct |> Seq.last
             //let (result, newExpr) = 
             //    run' rndExprNumOfVars opStruct (fun i -> eval' [||] freshRndExpr (toBits' rndExprNumOfVars i)) rndExpr.Length [|0 .. rndFinal - 1|]
@@ -355,7 +412,7 @@ let enum' = minimize numOfVars 200 expr
 
 let enum'' = enum'.GetEnumerator()
 
-for i = 1 to 100 do
+for i = 1 to 200 do
     enum''.MoveNext() |> ignore
 
 
