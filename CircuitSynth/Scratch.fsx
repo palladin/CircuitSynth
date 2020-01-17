@@ -211,7 +211,7 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 let rec exec' : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f opStruct -> 
     seq {
-        setTimeout(20.0 * float 1)
+        setTimeout(60.0 * float 1)
         
         let data = 
             [|0 .. final - 1|]
@@ -248,7 +248,7 @@ let rec exec' : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExp
 
 let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f data opStruct -> 
     seq {
-        setTimeout(20.0 * float 1)
+        setTimeout(60.0 * float 1)
         
         let values = 
             [|0 .. final - 1|]
@@ -302,10 +302,10 @@ let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq
 
     }
 
-let expr = exec 1 [||] [||] isPrime [||] (getOpStruct ()) |> Seq.last 
+let expr = exec' 1 [||] [||] isPrime (getOpStruct ()) |> Seq.last 
 expr.Length
 
-let enum = (exec 1 [||] [||] isPrime [||] (getOpStruct ())).GetEnumerator()
+let enum = (exec 1 [||] [||] isPowerOfTwo [||] (getOpStruct ())).GetEnumerator()
 
 //for i = 1 to 32 do
 enum.MoveNext() |> ignore
