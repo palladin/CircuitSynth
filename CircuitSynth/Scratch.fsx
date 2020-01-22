@@ -56,7 +56,7 @@ let getOpStruct : unit -> Ops = fun () -> { OpExprs = opExprs;
                                             ArityOps = arityOfOps;
                                             Active = [|true; true; true; true|]  }
 
-
+let initTimeout = 20.0
 let numOfTries = 1
 let numOfOps = opExprs.Length
 let numOfInstrsIndex = 1
@@ -209,9 +209,9 @@ let updateOps : BoolExpr' [] [] -> Ops -> Ops = fun exprs ops ->
 
 
 
-let rec exec' : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f opStruct -> 
+let rec exec' : float -> int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExpr'[]> = fun timeout i fixedInstrs accInstrs f opStruct -> 
     seq {
-        setTimeout(60.0 * float 1)
+        setTimeout(timeout)
         
         let data = 
             [|0 .. final - 1|]
@@ -219,6 +219,7 @@ let rec exec' : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExp
             |> Array.take i
         
         
+        printfn "timeout: %f" timeout
         printfn "i: %d" i
         printfn "Data: %A" data
         printfn "FixedInstrs length: %A" fixedInstrs.Length
@@ -239,23 +240,26 @@ let rec exec' : int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> seq<BoolExp
         yield [||]
 
         if instrs.Length = 0 then
-            yield! exec' i accInstrs accInstrs f opStruct 
+            if fixedInstrs.Length = accInstrs.Length then
+                yield! exec' (timeout + initTimeout) i accInstrs accInstrs f opStruct 
+            else
+                yield! exec' initTimeout i accInstrs accInstrs f opStruct 
         else 
             if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
-                yield! exec' (i + 1) fixedInstrs instrs f opStruct 
+                yield! exec' (timeout + initTimeout) (i + 1) fixedInstrs instrs f opStruct 
     }
 
 
-let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr'[]> = fun i fixedInstrs accInstrs f data opStruct -> 
+let rec exec : float -> int -> Instrs' -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq<BoolExpr'[]> = fun timeout i fixedInstrs accInstrs f data opStruct -> 
     seq {
-        setTimeout(60.0 * float 1)
+        setTimeout(timeout)
         
         let values = 
             [|0 .. final - 1|]
             |> Array.filter f
             |> Array.filter (fun i -> not <| Array.contains i data)
         
-        
+        printfn "timeout: %f" timeout
         printfn "i: %d" i
         printfn "Data: %A" data
         printfn "Values: %A" values
@@ -293,22 +297,26 @@ let rec exec : int -> Instrs' -> Instrs' -> (int -> bool) -> int[] -> Ops -> seq
         yield [||]
 
         if minInstrs.Length = 0 then
-            yield! exec i accInstrs accInstrs f data opStruct 
+            if fixedInstrs.Length = accInstrs.Length then
+                yield! exec (timeout + initTimeout) i accInstrs accInstrs f data opStruct 
+            else 
+                yield! exec initTimeout i accInstrs accInstrs f data opStruct 
         else 
             let data = Array.append [|minV|] data
             if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
-                yield! exec (i + 1) fixedInstrs minInstrs f data opStruct 
+                yield! exec timeout (i + 1) fixedInstrs minInstrs f data opStruct 
 
 
     }
 
-let expr = exec' 1 [||] [||] isPrime (getOpStruct ()) |> Seq.last 
-expr.Length
+let enum' = (exec' initTimeout 1 [||] [||] (fun i -> i % 3 = 0) (getOpStruct ())).GetEnumerator()
+for i = 1 to 32 do
+    enum'.MoveNext() |> ignore
 
-let enum = (exec 1 [||] [||] isPowerOfTwo [||] (getOpStruct ())).GetEnumerator()
+let enum = (exec initTimeout 1 [||] [||] (fun i -> i % 3 = 0) [||] (getOpStruct ())).GetEnumerator()
 
-//for i = 1 to 32 do
-enum.MoveNext() |> ignore
+for i = 1 to 32 do
+    enum.MoveNext() |> ignore
 
 
 setTimeout(20.0)
