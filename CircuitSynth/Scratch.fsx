@@ -8,6 +8,7 @@
 open System
 open System.Diagnostics
 open System.Collections.Generic
+open System.Threading.Tasks
 open Microsoft.Z3
 open Utils
 open Init
@@ -228,11 +229,24 @@ let rec exec' : float -> int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> se
         yield [||]
 
         
-        let (_, _, _, _, _, _, instrs, expr) = 
-            run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
-                                   fixedInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
-        //let (_, instrs, expr) = 
-        //    run' numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i)) 1 [|0 .. final - 1|] fixedInstrs
+        //let (_, _, _, _, _, _, instrs, expr) = 
+        //    run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
+        //                           fixedInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
+        let results = 
+            seq { for i in {1..10} do
+                    printfn "------------ %d ------------" i
+                    let (result, instrs, expr, timeSpan) = 
+                        run' numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i)) 5 [|0 .. final - 1|] fixedInstrs
+                    yield (result, instrs, expr, timeSpan)
+            }
+        //printfn "Results: %A" (results |> Array.map (fun (_, instrs, _, timeSpan) -> (instrs.Length, timeSpan)))
+        let results = results |> Seq.filter (fun (_, instrs, _, _) -> instrs.Length > 0) |> take' 1 |> Seq.toArray
+        let (result, instrs, expr, timeSpan) = 
+            if results.Length = 0 then
+                (0, [||], [||], Unchecked.defaultof<TimeSpan>)
+            else
+                results.[0]
+
         //let (_, _, _, _, _, _, instrs, _) = 
         //    run numOfVars opStruct (fun i -> data |> Array.exists (fun j -> j = i))
         //                           accInstrs 1 1 1 100 (fun () -> [|0 .. final - 1|]) 
@@ -246,7 +260,7 @@ let rec exec' : float -> int -> Instrs' -> Instrs' -> (int -> bool) -> Ops -> se
                 yield! exec' initTimeout i accInstrs accInstrs f opStruct 
         else 
             if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
-                yield! exec' (timeout + initTimeout) (i + 1) fixedInstrs instrs f opStruct 
+                yield! exec' timeout (i + 1) fixedInstrs instrs f opStruct 
     }
 
 
@@ -304,16 +318,16 @@ let rec exec : float -> int -> Instrs' -> Instrs' -> (int -> bool) -> int[] -> O
         else 
             let data = Array.append [|minV|] data
             if i <> ([|0 .. final - 1|] |> Array.filter f |> Array.length) then
-                yield! exec timeout (i + 1) fixedInstrs minInstrs f data opStruct 
+                yield! exec (timeout + initTimeout) (i + 1) fixedInstrs minInstrs f data opStruct 
 
 
     }
 
-let enum' = (exec' initTimeout 1 [||] [||] (fun i -> i % 3 = 0) (getOpStruct ())).GetEnumerator()
+let enum' = (exec' initTimeout 1 [||] [||] isPrime (getOpStruct ())).GetEnumerator()
 for i = 1 to 32 do
     enum'.MoveNext() |> ignore
 
-let enum = (exec initTimeout 1 [||] [||] (fun i -> i % 3 = 0) [||] (getOpStruct ())).GetEnumerator()
+let enum = (exec initTimeout 1 [||] [||] isPrime [||] (getOpStruct ())).GetEnumerator()
 
 for i = 1 to 32 do
     enum.MoveNext() |> ignore
@@ -324,6 +338,59 @@ run' numOfVars (getOpStruct ()) isEven 25 [|0 .. final - 1|] [||]
 
 //while enum.MoveNext() do
 //    ()
+
+let rec cubeAndConquer : int -> Solver -> Status = fun depth s ->
+    let mutable status = Status.UNKNOWN
+    if depth > 10 then
+        status 
+    else
+        let cubes = s.Cube() |> Array.ofSeq 
+        for cube in cubes do
+            printfn "Depth: %d" depth
+            printfn "%A" cube
+            if status <> Status.SATISFIABLE then
+                if cube.Length = 0 then
+                    status <- Status.UNKNOWN
+                else if cube.[0] = True then
+                    status <- Status.SATISFIABLE
+                else 
+                    let watch = Stopwatch.StartNew()                    
+                    status <- s.Check(cube)
+                    printfn "%A - %A" status watch.Elapsed
+                    if status = Status.UNKNOWN then
+                        let s' = s.Translate(ctx)
+                        s'.Add(cube)
+                        status <- cubeAndConquer (depth + 1) s'
+        status
+
+let rec cubes : Solver -> seq<BoolExpr[]> = fun s ->
+    seq {
+        let cs = s.Cube() |> Array.ofSeq
+        let index = if rand.Next() % 2 = 0 then 0 else 1
+        let cube = cs.[index]
+        printfn "%A" cube
+        yield cube
+        let s' = s.Translate(ctx)
+        s'.Add(cube)
+        yield! cubes s'
+    }
+
+#time
+setTimeout(20.0)
+let s = ctx.MkSolver("QF_BV")
+s.Add(ctx.ParseSMTLIB2File(@"C:\Users\npal\source\repos\idris-snippets\input.smt2"))
+
+let cs = cubes s |> Seq.cache
+for i = 1 to 20 do
+    let cs = cs |> Seq.take i |> Array.ofSeq |> Array.collect id
+    printfn "%A" <| s.Check(cs)
+
+
+
+
+s.Model
+
+cubeAndConquer 0 s 
 
 
 

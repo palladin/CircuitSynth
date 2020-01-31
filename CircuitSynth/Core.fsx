@@ -447,7 +447,8 @@ let find : int -> (BoolExpr -> BoolExpr [] -> BoolExpr) [] ->
             solver.Assert(fixedOp)
             ()
 
-        //printfn "Cubes: %d" <| (solver.Cube() |> Seq.length)
+        //for cube in solver.Cube() do
+        //    printfn "Cube: %A" cube
         //File.WriteAllText("dump.txt", solver.ToString())
         let status = solver.Check() 
         if not (status = Status.SATISFIABLE) then
@@ -572,14 +573,14 @@ let rec run : int -> Ops -> (int -> bool) -> Instrs' -> int -> int -> int -> int
         (result, !posRef, (fun i -> ops (toBits' numOfVars i)), ops, opStr, opExpr, instrs', expr')
 
 
-let run' : int -> Ops -> (int -> bool) -> int -> int [] -> Instrs' -> (int * Instrs' * BoolExpr' []) = 
-    fun numOfVars opStruct verify numOfInstrs testData fixedInstrs ->
+let run' : int -> Ops -> (int -> bool) -> int -> int [] -> Instrs' -> (int * Instrs' * BoolExpr' [] * TimeSpan) = 
+    fun numOfVars opStruct verify numOfTries testData fixedInstrs ->
         let availableOpExprs = 
                 opStruct.Active 
                 |> Array.mapi (fun i b -> (i, b))
                 |> Array.filter (fun (_, b) -> b)
                 |> Array.map (fun (i, _) -> i)
-        let rec run'' : int -> (int * Instrs' * BoolExpr' []) = fun numOfInstrsIndex -> 
+        let rec run'' : int -> int -> (int * Instrs' * BoolExpr' [] * TimeSpan) = fun numOfInstrsIndex tries -> 
             let watch = new Stopwatch()
             watch.Start()
             let (status, instrs') = find' numOfVars opStruct verify testData numOfInstrsIndex fixedInstrs
@@ -588,12 +589,12 @@ let run' : int -> Ops -> (int -> bool) -> int -> int [] -> Instrs' -> (int * Ins
             match status with
             | Status.SATISFIABLE -> 
                 let expr' = compileInstrsToBoolExprs opStruct.ArityOps instrs'
-                (testData.Length, instrs', expr')
+                (testData.Length, instrs', expr', watch.Elapsed)
             | Status.UNSATISFIABLE -> 
-                run'' (numOfInstrsIndex + 1) 
-            | Status.UNKNOWN when numOfInstrsIndex > numOfInstrs -> 
-                (0, [||], [||])
+                run'' (numOfInstrsIndex + 1) tries 
+            | Status.UNKNOWN when tries >= numOfTries -> 
+                (0, [||], [||], Unchecked.defaultof<TimeSpan>)
             | Status.UNKNOWN -> 
-                run'' (numOfInstrsIndex + 1) 
+                run'' (numOfInstrsIndex + 1) (tries + 1)
             | _ -> failwith "oups"
-        run'' 1
+        run'' 1 1
